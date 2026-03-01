@@ -10,6 +10,8 @@ export interface ClientToServerEvents {
 
   // Host events
   'host:create': (data: { gameCode: string }) => void;
+  'host:approve_player': (data: { playerId: string }) => void;
+  'host:reject_player': (data: { playerId: string }) => void;
   'host:start_question': (data: { questionIdx: number }) => void;
   'host:end_question': () => void;
   'host:grade_answers': (data: { grades: GradeEntry[] }) => void;
@@ -22,8 +24,11 @@ export interface ServerToClientEvents {
   // Lobby events
   'player_joined': (data: { player: Player }) => void;
   'player_left': (data: { playerId: string }) => void;
+  'join_pending': (data: { playerId: string }) => void;
   'join_success': (data: { playerId: string; game: { gameCode: string; status: string } }) => void;
+  'join_rejected': (data: { message: string }) => void;
   'join_error': (data: { message: string }) => void;
+  'player_pending': (data: { playerId: string; displayName: string }) => void;
 
   // Game flow events
   'question': (data: { question: QuestionForPlayer; questionIdx: number; totalQuestions: number; endTime: number }) => void;

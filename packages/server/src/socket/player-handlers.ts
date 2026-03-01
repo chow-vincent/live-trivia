@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import type { TypedServer, TypedSocket } from './index.js';
 import { getActiveGame } from './index.js';
 import * as db from '../db/index.js';
-import { getQuestionPlugin, type Player, type Answer } from '@live-trivia/shared';
+import { getQuestionPlugin, type Answer } from '@live-trivia/shared';
 
 export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): void {
 
@@ -20,40 +20,31 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
     }
 
     const playerId = nanoid(10);
-    const player: Player = {
-      playerId,
-      displayName: displayName.trim().slice(0, 30), // Sanitize length
-      totalScore: 0,
-      joinedAt: Date.now(),
-    };
+    const safeName = displayName.trim().slice(0, 30);
 
-    // Save to DynamoDB
-    await db.addPlayer(gameCode, player);
-
-    // Track socket mapping
+    // Place player in pending state — host must approve
     const activeGame = getActiveGame(gameCode);
-    if (activeGame) {
-      activeGame.playerSockets.set(playerId, socket.id);
+    if (!activeGame) {
+      socket.emit('join_error', { message: 'Game is not ready yet.' });
+      return;
     }
 
-    // Join the game room
-    socket.join(`game:${gameCode}`);
-
-    // Store player info on socket for later use
-    (socket as any).playerId = playerId;
-    (socket as any).gameCode = gameCode;
-    (socket as any).displayName = player.displayName;
-
-    // Confirm join to the player
-    socket.emit('join_success', {
+    activeGame.pendingPlayers.set(playerId, {
       playerId,
-      game: { gameCode: game.gameCode, status: game.status },
+      displayName: safeName,
+      socketId: socket.id,
     });
 
-    // Notify everyone (including host) that a player joined
-    io.to(`game:${gameCode}`).emit('player_joined', { player });
+    // Tell the player they're waiting for approval
+    socket.emit('join_pending', { playerId });
 
-    console.log(`Player "${player.displayName}" joined game ${gameCode}`);
+    // Tell the host a player is waiting
+    io.to(activeGame.hostSocketId).emit('player_pending', {
+      playerId,
+      displayName: safeName,
+    });
+
+    console.log(`Player "${safeName}" pending approval in game ${gameCode}`);
   });
 
   socket.on('player:submit_answer', async (data: { answer: Answer }) => {

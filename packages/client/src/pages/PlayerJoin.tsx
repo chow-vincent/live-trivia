@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket.js';
 
+type JoinState = 'idle' | 'joining' | 'pending' | 'rejected';
+
 export default function PlayerJoin() {
   const navigate = useNavigate();
   const { socket, connected } = useSocket();
   const [gameCode, setGameCode] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
-  const [joining, setJoining] = useState(false);
+  const [joinState, setJoinState] = useState<JoinState>('idle');
 
   useEffect(() => {
     if (!socket) return;
@@ -20,16 +22,29 @@ export default function PlayerJoin() {
       navigate('/play');
     };
 
+    const onJoinPending = () => {
+      setJoinState('pending');
+    };
+
+    const onJoinRejected = (data: { message: string }) => {
+      setJoinState('rejected');
+      setError(data.message);
+    };
+
     const onJoinError = (data: { message: string }) => {
       setError(data.message);
-      setJoining(false);
+      setJoinState('idle');
     };
 
     socket.on('join_success', onJoinSuccess);
+    socket.on('join_pending', onJoinPending);
+    socket.on('join_rejected', onJoinRejected);
     socket.on('join_error', onJoinError);
 
     return () => {
       socket.off('join_success', onJoinSuccess);
+      socket.off('join_pending', onJoinPending);
+      socket.off('join_rejected', onJoinRejected);
       socket.off('join_error', onJoinError);
     };
   }, [socket, navigate, displayName]);
@@ -38,7 +53,7 @@ export default function PlayerJoin() {
     if (!socket || !connected) return;
     if (!gameCode.trim() || !displayName.trim()) return;
 
-    setJoining(true);
+    setJoinState('joining');
     setError('');
 
     socket.emit('player:join', {
@@ -46,6 +61,47 @@ export default function PlayerJoin() {
       displayName: displayName.trim(),
     });
   };
+
+  const handleTryAgain = () => {
+    setJoinState('idle');
+    setError('');
+  };
+
+  // Pending state — waiting for host approval
+  if (joinState === 'pending') {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 py-10 min-h-dvh w-full max-w-lg mx-auto">
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center space-y-4">
+          <div className="w-12 h-12 border-[3px] border-gray-200 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+          <h2 className="text-xl font-bold text-slate-900">Waiting for host</h2>
+          <p className="text-slate-500">
+            The host will approve your request to join. Hang tight!
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Rejected state
+  if (joinState === 'rejected') {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 py-10 min-h-dvh w-full max-w-lg mx-auto">
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+            <span className="text-red-500 text-xl font-bold">&times;</span>
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Request declined</h2>
+          <p className="text-slate-500">{error}</p>
+          <button
+            onClick={handleTryAgain}
+            className="px-6 py-2.5 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center px-4 py-10 min-h-dvh w-full max-w-lg mx-auto">
@@ -85,10 +141,10 @@ export default function PlayerJoin() {
 
         <button
           onClick={handleJoin}
-          disabled={joining || !connected || !gameCode.trim() || !displayName.trim()}
+          disabled={joinState === 'joining' || !connected || !gameCode.trim() || !displayName.trim()}
           className="w-full py-3.5 rounded-xl bg-indigo-500 text-white font-semibold text-lg hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
-          {joining ? 'Joining...' : 'Join Game'}
+          {joinState === 'joining' ? 'Joining...' : 'Join Game'}
         </button>
       </div>
 

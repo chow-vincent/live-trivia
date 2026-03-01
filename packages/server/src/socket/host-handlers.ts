@@ -22,6 +22,7 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
       hostSocketId: socket.id,
       timers: new Map(),
       playerSockets: new Map(),
+      pendingPlayers: new Map(),
     };
     setActiveGame(gameCode, activeGame);
 
@@ -132,6 +133,74 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     }
 
     console.log(`Game ${gameCode}: Graded question ${game.currentQuestionIdx + 1}`);
+  });
+
+  // Host approves a pending player
+  socket.on('host:approve_player', async (data: { playerId: string }) => {
+    const { playerId } = data;
+    const gameCode = getGameCodeFromSocket(socket);
+    if (!gameCode) return;
+
+    const activeGame = getActiveGame(gameCode);
+    if (!activeGame) return;
+
+    const pending = activeGame.pendingPlayers.get(playerId);
+    if (!pending) return;
+
+    // Move from pending to approved
+    activeGame.pendingPlayers.delete(playerId);
+
+    const player = {
+      playerId: pending.playerId,
+      displayName: pending.displayName,
+      totalScore: 0,
+      joinedAt: Date.now(),
+    };
+
+    await db.addPlayer(gameCode, player);
+    activeGame.playerSockets.set(playerId, pending.socketId);
+
+    // Put the player's socket into the game room
+    const playerSocket = io.sockets.sockets.get(pending.socketId);
+    if (playerSocket) {
+      playerSocket.join(`game:${gameCode}`);
+      (playerSocket as any).playerId = playerId;
+      (playerSocket as any).gameCode = gameCode;
+      (playerSocket as any).displayName = pending.displayName;
+
+      playerSocket.emit('join_success', {
+        playerId,
+        game: { gameCode, status: 'lobby' },
+      });
+    }
+
+    // Notify everyone a player joined
+    io.to(`game:${gameCode}`).emit('player_joined', { player });
+
+    console.log(`Host approved player "${pending.displayName}" in game ${gameCode}`);
+  });
+
+  // Host rejects a pending player
+  socket.on('host:reject_player', async (data: { playerId: string }) => {
+    const { playerId } = data;
+    const gameCode = getGameCodeFromSocket(socket);
+    if (!gameCode) return;
+
+    const activeGame = getActiveGame(gameCode);
+    if (!activeGame) return;
+
+    const pending = activeGame.pendingPlayers.get(playerId);
+    if (!pending) return;
+
+    activeGame.pendingPlayers.delete(playerId);
+
+    // Notify the rejected player
+    const playerSocket = io.sockets.sockets.get(pending.socketId);
+    if (playerSocket) {
+      playerSocket.emit('join_rejected', { message: 'The host declined your request to join.' });
+    }
+
+    console.log(`Host rejected player "${pending.displayName}" in game ${gameCode}`);
   });
 }
 
