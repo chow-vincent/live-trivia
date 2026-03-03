@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from './hooks/useSocket.js';
+import ProtectedRoute from './components/ProtectedRoute.js';
 import PlayerJoin from './pages/PlayerJoin.js';
 import PlayerGame from './pages/PlayerGame.js';
 import HostCreate from './pages/HostCreate.js';
@@ -12,11 +13,16 @@ export default function App() {
     <SocketProvider>
       <BrowserRouter>
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<PlayerJoin />} />
           <Route path="/play" element={<PlayerGame />} />
-          <Route path="/host" element={<HostCreate />} />
-          <Route path="/host/lobby" element={<HostLobby />} />
-          <Route path="/host/game" element={<HostGame />} />
+
+          {/* Protected host routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/host" element={<HostCreate />} />
+            <Route path="/host/lobby" element={<HostLobby />} />
+            <Route path="/host/game" element={<HostGame />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </SocketProvider>

@@ -21,6 +21,8 @@ COPY packages/client/ packages/client/
 
 # Build shared → client → server
 RUN pnpm --filter @live-trivia/shared build
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 RUN pnpm --filter @live-trivia/client build
 RUN pnpm --filter @live-trivia/server build
 

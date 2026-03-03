@@ -9,6 +9,18 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 REGION="${CDK_DEFAULT_REGION:-${AWS_REGION:-us-west-2}}"
 ECR_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/live-trivia"
 
+# Load Clerk publishable key (required for client build)
+if [ -z "${VITE_CLERK_PUBLISHABLE_KEY:-}" ]; then
+  ENV_FILE="$REPO_ROOT/packages/client/.env.local"
+  if [ -f "$ENV_FILE" ]; then
+    VITE_CLERK_PUBLISHABLE_KEY=$(grep VITE_CLERK_PUBLISHABLE_KEY "$ENV_FILE" | cut -d= -f2-)
+  fi
+fi
+if [ -z "${VITE_CLERK_PUBLISHABLE_KEY:-}" ]; then
+  echo "Error: VITE_CLERK_PUBLISHABLE_KEY is not set. Set it as an env var or in packages/client/.env.local"
+  exit 1
+fi
+
 echo "==> Step 1: Set up Python venv and install dependencies"
 cd "$SCRIPT_DIR"
 if [ ! -d .venv ]; then
@@ -25,7 +37,9 @@ cd "$REPO_ROOT"
 aws ecr get-login-password --region "$REGION" | \
   docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
-docker build --platform linux/amd64 -f packages/server/Dockerfile -t live-trivia .
+docker build --platform linux/amd64 \
+  --build-arg VITE_CLERK_PUBLISHABLE_KEY="$VITE_CLERK_PUBLISHABLE_KEY" \
+  -f packages/server/Dockerfile -t live-trivia .
 docker tag live-trivia:latest "${ECR_URI}:latest"
 docker push "${ECR_URI}:latest"
 
