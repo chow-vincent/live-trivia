@@ -12,7 +12,7 @@ import type { Game, Player, PlayerAnswer, LeaderboardEntry, GradeEntry, Question
 const TABLE_NAME = process.env.DYNAMODB_TABLE || 'LiveTrivia';
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'us-west-2',
   ...(process.env.DYNAMODB_ENDPOINT && {
     endpoint: process.env.DYNAMODB_ENDPOINT,
   }),

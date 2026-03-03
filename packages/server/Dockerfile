@@ -9,21 +9,20 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 # Copy package.json files for all packages
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
+COPY packages/client/package.json packages/client/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile --filter @live-trivia/shared --filter @live-trivia/server
+# Install dependencies for all packages
+RUN pnpm install --frozen-lockfile --filter @live-trivia/shared --filter @live-trivia/server --filter @live-trivia/client
 
 # Copy source code
 COPY packages/shared/ packages/shared/
 COPY packages/server/ packages/server/
+COPY packages/client/ packages/client/
 
-# Build shared first, then server
+# Build shared → client → server
 RUN pnpm --filter @live-trivia/shared build
+RUN pnpm --filter @live-trivia/client build
 RUN pnpm --filter @live-trivia/server build
-
-# Copy client build output (built externally and passed in, or built here)
-# For the "serve static from Express" approach:
-COPY packages/client/dist/ packages/client/dist/
 
 EXPOSE 3001
 ENV NODE_ENV=production
