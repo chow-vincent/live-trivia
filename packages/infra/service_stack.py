@@ -34,6 +34,7 @@ class ServiceStack(Stack):
         super().__init__(scope, id, **kwargs)
 
         domain_name = "hostedtrivia.com"
+        app_domain = f"app.{domain_name}"
 
         # ─── VPC (public subnets only, no NAT) ───────────────
         vpc = ec2.Vpc(
@@ -61,8 +62,7 @@ class ServiceStack(Stack):
         certificate = acm.Certificate(
             self,
             "Cert",
-            domain_name=domain_name,
-            subject_alternative_names=[f"www.{domain_name}"],
+            domain_name=app_domain,
             validation=acm.CertificateValidation.from_dns(hosted_zone),
         )
 
@@ -80,7 +80,7 @@ class ServiceStack(Stack):
             circuit_breaker=ecs.DeploymentCircuitBreaker(rollback=True),
             health_check_grace_period=Duration.seconds(120),
             certificate=certificate,
-            domain_name=domain_name,
+            domain_name=app_domain,
             domain_zone=hosted_zone,
             protocol=elbv2.ApplicationProtocol.HTTPS,
             ssl_policy=elbv2.SslPolicy.RECOMMENDED_TLS,
@@ -114,47 +114,13 @@ class ServiceStack(Stack):
         # Grant DynamoDB access to the Fargate task role
         table.grant_read_write_data(service.task_definition.task_role)
 
-        # ─── www → apex redirect ─────────────────────────────
-        service.listener.add_action(
-            "WwwRedirect",
-            priority=10,
-            conditions=[
-                elbv2.ListenerCondition.host_headers([f"www.{domain_name}"]),
-            ],
-            action=elbv2.ListenerAction.redirect(
-                host=domain_name,
-                permanent=True,
-            ),
-        )
-
         # ─── Additional DNS records ──────────────────────────
-        # AAAA (IPv6) for apex — the construct only creates the A record
+        # AAAA (IPv6) for app subdomain — the construct only creates the A record
         route53.AaaaRecord(
             self,
-            "ApexAAAA",
+            "AppAAAA",
             zone=hosted_zone,
-            record_name=domain_name,
-            target=route53.RecordTarget.from_alias(
-                targets.LoadBalancerTarget(service.load_balancer)
-            ),
-        )
-
-        # A + AAAA for www (so requests reach the ALB for redirect)
-        route53.ARecord(
-            self,
-            "WwwA",
-            zone=hosted_zone,
-            record_name=f"www.{domain_name}",
-            target=route53.RecordTarget.from_alias(
-                targets.LoadBalancerTarget(service.load_balancer)
-            ),
-        )
-
-        route53.AaaaRecord(
-            self,
-            "WwwAAAA",
-            zone=hosted_zone,
-            record_name=f"www.{domain_name}",
+            record_name=app_domain,
             target=route53.RecordTarget.from_alias(
                 targets.LoadBalancerTarget(service.load_balancer)
             ),
@@ -164,6 +130,6 @@ class ServiceStack(Stack):
         CfnOutput(
             self,
             "ServiceUrl",
-            value=f"https://{domain_name}",
+            value=f"https://{app_domain}",
             description="Application URL",
         )

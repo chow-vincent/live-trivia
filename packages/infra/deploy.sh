@@ -64,4 +64,4 @@ else
 fi
 
 echo ""
-echo "==> Done! Your app is live at https://hostedtrivia.com"
+echo "==> Done! Your app is live at https://app.hostedtrivia.com"
