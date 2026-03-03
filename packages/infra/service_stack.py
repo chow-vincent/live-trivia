@@ -7,12 +7,16 @@ from aws_cdk import (
     aws_ecs_patterns as ecs_patterns,
     aws_ecr as ecr,
     aws_dynamodb as dynamodb,
+    aws_certificatemanager as acm,
+    aws_route53 as route53,
+    aws_route53_targets as targets,
+    aws_elasticloadbalancingv2 as elbv2,
 )
 from constructs import Construct
 
 
 class ServiceStack(Stack):
-    """VPC, ECS Fargate service, and ALB.
+    """VPC, ECS Fargate service, ALB with HTTPS, and Route 53 DNS.
 
     Deployed AFTER the foundation stack and Docker image push,
     so the ECR repository already contains a valid image.
@@ -28,6 +32,8 @@ class ServiceStack(Stack):
         **kwargs,
     ) -> None:
         super().__init__(scope, id, **kwargs)
+
+        domain_name = "hostedtrivia.com"
 
         # ─── VPC (public subnets only, no NAT) ───────────────
         vpc = ec2.Vpc(
@@ -47,6 +53,19 @@ class ServiceStack(Stack):
         # ─── ECS Cluster ─────────────────────────────────────
         cluster = ecs.Cluster(self, "Cluster", vpc=vpc)
 
+        # ─── DNS + TLS ───────────────────────────────────────
+        hosted_zone = route53.HostedZone.from_lookup(
+            self, "Zone", domain_name=domain_name
+        )
+
+        certificate = acm.Certificate(
+            self,
+            "Cert",
+            domain_name=domain_name,
+            subject_alternative_names=[f"www.{domain_name}"],
+            validation=acm.CertificateValidation.from_dns(hosted_zone),
+        )
+
         # ─── Fargate Service + ALB ───────────────────────────
         service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -60,6 +79,12 @@ class ServiceStack(Stack):
             min_healthy_percent=100,
             circuit_breaker=ecs.DeploymentCircuitBreaker(rollback=True),
             health_check_grace_period=Duration.seconds(120),
+            certificate=certificate,
+            domain_name=domain_name,
+            domain_zone=hosted_zone,
+            protocol=elbv2.ApplicationProtocol.HTTPS,
+            ssl_policy=elbv2.SslPolicy.RECOMMENDED_TLS,
+            redirect_http=True,
             task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
                 image=ecs.ContainerImage.from_ecr_repository(repository, tag="latest"),
                 container_port=3001,
@@ -89,10 +114,56 @@ class ServiceStack(Stack):
         # Grant DynamoDB access to the Fargate task role
         table.grant_read_write_data(service.task_definition.task_role)
 
+        # ─── www → apex redirect ─────────────────────────────
+        service.listener.add_action(
+            "WwwRedirect",
+            priority=10,
+            conditions=[
+                elbv2.ListenerCondition.host_headers([f"www.{domain_name}"]),
+            ],
+            action=elbv2.ListenerAction.redirect(
+                host=domain_name,
+                permanent=True,
+            ),
+        )
+
+        # ─── Additional DNS records ──────────────────────────
+        # AAAA (IPv6) for apex — the construct only creates the A record
+        route53.AaaaRecord(
+            self,
+            "ApexAAAA",
+            zone=hosted_zone,
+            record_name=domain_name,
+            target=route53.RecordTarget.from_alias(
+                targets.LoadBalancerTarget(service.load_balancer)
+            ),
+        )
+
+        # A + AAAA for www (so requests reach the ALB for redirect)
+        route53.ARecord(
+            self,
+            "WwwA",
+            zone=hosted_zone,
+            record_name=f"www.{domain_name}",
+            target=route53.RecordTarget.from_alias(
+                targets.LoadBalancerTarget(service.load_balancer)
+            ),
+        )
+
+        route53.AaaaRecord(
+            self,
+            "WwwAAAA",
+            zone=hosted_zone,
+            record_name=f"www.{domain_name}",
+            target=route53.RecordTarget.from_alias(
+                targets.LoadBalancerTarget(service.load_balancer)
+            ),
+        )
+
         # ─── Outputs ─────────────────────────────────────────
         CfnOutput(
             self,
             "ServiceUrl",
-            value=f"http://{service.load_balancer.load_balancer_dns_name}",
-            description="ALB URL",
+            value=f"https://{domain_name}",
+            description="Application URL",
         )

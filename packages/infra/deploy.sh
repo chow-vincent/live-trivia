@@ -37,7 +37,7 @@ cd "$REPO_ROOT"
 aws ecr get-login-password --region "$REGION" | \
   docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
-docker build --platform linux/amd64 \
+docker build --platform linux/amd64 --no-cache \
   --build-arg VITE_CLERK_PUBLISHABLE_KEY="$VITE_CLERK_PUBLISHABLE_KEY" \
   -f packages/server/Dockerfile -t live-trivia .
 docker tag live-trivia:latest "${ECR_URI}:latest"
@@ -64,9 +64,4 @@ else
 fi
 
 echo ""
-echo "==> Done! Your app URL:"
-aws cloudformation describe-stacks \
-  --stack-name LiveTriviaServiceStack \
-  --region "$REGION" \
-  --query "Stacks[0].Outputs[?OutputKey=='ServiceUrl'].OutputValue" \
-  --output text
+echo "==> Done! Your app is live at https://hostedtrivia.com"

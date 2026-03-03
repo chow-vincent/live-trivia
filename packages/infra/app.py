@@ -3,6 +3,7 @@ import os
 import aws_cdk as cdk
 from foundation_stack import FoundationStack
 from service_stack import ServiceStack
+from github_oidc_stack import GitHubOidcStack
 
 app = cdk.App()
 
@@ -20,5 +21,7 @@ ServiceStack(
     repository=foundation.repository,
     table=foundation.table,
 )
+
+GitHubOidcStack(app, "LiveTriviaGitHubOidcStack", env=env)
 
 app.synth()
