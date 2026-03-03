@@ -6,6 +6,7 @@ import PlayerGame from './pages/PlayerGame.js';
 import HostCreate from './pages/HostCreate.js';
 import HostLobby from './pages/HostLobby.js';
 import HostGame from './pages/HostGame.js';
+import SignInPage from './pages/SignInPage.js';
 import './styles.css';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
           {/* Public routes */}
           <Route path="/" element={<PlayerJoin />} />
           <Route path="/play" element={<PlayerGame />} />
+          <Route path="/sign-in/*" element={<SignInPage />} />
 
           {/* Protected host routes */}
           <Route element={<ProtectedRoute />}>
