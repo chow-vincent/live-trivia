@@ -14,6 +14,12 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
       return;
     }
 
+    // Verify ownership if socket is authenticated
+    if (socket.data.userId && game.hostId !== socket.data.userId) {
+      socket.emit('error', { message: 'Not authorized to host this game' });
+      return;
+    }
+
     socket.join(`game:${gameCode}`);
     socket.join(`host:${gameCode}`);
 
@@ -158,6 +164,7 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     };
 
     await db.addPlayer(gameCode, player);
+    await db.incrementPlayerCount(gameCode);
     activeGame.playerSockets.set(playerId, pending.socketId);
 
     // Put the player's socket into the game room

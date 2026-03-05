@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useAuth } from '@clerk/clerk-react';
 import type { ClientToServerEvents, ServerToClientEvents } from '@live-trivia/shared';
 import React from 'react';
 
@@ -13,10 +14,11 @@ interface SocketContextValue {
 const SocketContext = createContext<SocketContextValue>({ socket: null, connected: false });
 
 // Single socket instance — lives for the entire app session.
-// Created once, shared across all pages via context.
+// Passes Clerk JWT in handshake auth when signed in.
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<TypedSocket | null>(null);
   const [connected, setConnected] = useState(false);
+  const { getToken, isSignedIn } = useAuth();
 
   useEffect(() => {
     const socket: TypedSocket = io({
@@ -25,6 +27,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      auth: async (cb) => {
+        // Hosts send their Clerk JWT; players connect without auth
+        try {
+          const token = isSignedIn ? await getToken() : null;
+          cb({ token });
+        } catch {
+          cb({});
+        }
+      },
     });
 
     socket.on('connect', () => setConnected(true));

@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket.js';
 
 type JoinState = 'idle' | 'joining' | 'pending' | 'rejected';
 
 export default function PlayerJoin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { socket, connected } = useSocket();
-  const [gameCode, setGameCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [gameCode, setGameCode] = useState(searchParams.get('code') ?? '');
+  const [displayName, setDisplayName] = useState(searchParams.get('name') ?? '');
   const [error, setError] = useState('');
   const [joinState, setJoinState] = useState<JoinState>('idle');
+  const autoJoinAttempted = useRef(false);
 
   useEffect(() => {
     if (!socket) return;
@@ -49,6 +51,20 @@ export default function PlayerJoin() {
     };
   }, [socket, navigate, displayName]);
 
+  // Auto-join when arriving with query params (from landing page redirect)
+  useEffect(() => {
+    if (autoJoinAttempted.current) return;
+    if (!socket || !connected) return;
+    if (!searchParams.get('code') || !searchParams.get('name')) return;
+
+    autoJoinAttempted.current = true;
+    setJoinState('joining');
+    socket.emit('player:join', {
+      gameCode: gameCode.trim().toUpperCase(),
+      displayName: displayName.trim(),
+    });
+  }, [socket, connected, searchParams, gameCode, displayName]);
+
   const handleJoin = () => {
     if (!socket || !connected) return;
     if (!gameCode.trim() || !displayName.trim()) return;
@@ -72,7 +88,7 @@ export default function PlayerJoin() {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-10 min-h-dvh w-full max-w-lg mx-auto">
         <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center space-y-4">
-          <div className="w-12 h-12 border-[3px] border-gray-200 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+          <div className="w-12 h-12 border-[3px] border-gray-200 border-t-brand-300 rounded-full animate-spin mx-auto" />
           <h2 className="text-xl font-bold text-slate-900">Waiting for host</h2>
           <p className="text-slate-500">
             The host will approve your request to join. Hang tight!
@@ -94,7 +110,7 @@ export default function PlayerJoin() {
           <p className="text-slate-500">{error}</p>
           <button
             onClick={handleTryAgain}
-            className="px-6 py-2.5 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-colors"
+            className="px-6 py-2.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 transition-colors"
           >
             Try Again
           </button>
@@ -118,7 +134,7 @@ export default function PlayerJoin() {
             onChange={(e) => setGameCode(e.target.value.toUpperCase())}
             maxLength={5}
             autoFocus
-            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-slate-50 text-slate-900 text-center text-2xl font-bold tracking-[0.2em] placeholder:text-slate-300 placeholder:font-normal placeholder:text-lg placeholder:tracking-normal focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-slate-50 text-slate-900 text-center text-2xl font-bold tracking-[0.2em] placeholder:text-slate-300 placeholder:font-normal placeholder:text-lg placeholder:tracking-normal focus:outline-none focus:border-brand-300 transition-colors"
           />
         </div>
 
@@ -131,7 +147,7 @@ export default function PlayerJoin() {
             onChange={(e) => setDisplayName(e.target.value)}
             maxLength={30}
             onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-slate-50 text-slate-900 text-lg placeholder:text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-slate-50 text-slate-900 text-lg placeholder:text-slate-300 focus:outline-none focus:border-brand-300 transition-colors"
           />
         </div>
 
@@ -142,7 +158,7 @@ export default function PlayerJoin() {
         <button
           onClick={handleJoin}
           disabled={joinState === 'joining' || !connected || !gameCode.trim() || !displayName.trim()}
-          className="w-full py-3.5 rounded-xl bg-indigo-500 text-white font-semibold text-lg hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+          className="w-full py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold text-lg hover:bg-brand-400 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
           {joinState === 'joining' ? 'Joining...' : 'Join Game'}
         </button>
@@ -150,7 +166,7 @@ export default function PlayerJoin() {
 
       <p className="mt-8 text-sm text-slate-400">
         Are you the host?{' '}
-        <a href="/host" className="text-indigo-500 font-medium hover:text-indigo-600">
+        <a href="/host" className="text-brand-500 font-medium hover:text-brand-400">
           Create a game
         </a>
       </p>

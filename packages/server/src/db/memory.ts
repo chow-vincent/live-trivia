@@ -13,14 +13,16 @@ function answerKey(gameCode: string, questionIdx: number): string {
 
 // ─── Game Operations ───────────────────────────────────────────────
 
-export async function createGame(gameCode: string, hostId: string, questions: Question[]): Promise<Game> {
+export async function createGame(gameCode: string, hostId: string, questions: Question[], name: string, status: Game['status'] = 'lobby'): Promise<Game> {
   const game: Game = {
     gameCode,
-    status: 'lobby',
+    name,
+    status,
     questions,
     currentQuestionIdx: -1,
     createdAt: Date.now(),
     hostId,
+    playerCount: 0,
   };
   games.set(gameCode, game);
   players.set(gameCode, []);
@@ -117,4 +119,57 @@ export async function getLeaderboard(gameCode: string): Promise<LeaderboardEntry
 
 export async function removePlayer(gameCode: string, playerId: string): Promise<void> {
   // No-op for in-memory store
+}
+
+// ─── Host Dashboard Operations ────────────────────────────────────
+
+export async function getGamesByHost(
+  hostId: string,
+  limit: number = 20,
+  cursor?: string,
+): Promise<{ games: Array<{ gameCode: string; name: string; status: string; playerCount: number; createdAt: number }>; nextCursor?: string }> {
+  const allGames = Array.from(games.values())
+    .filter((g) => g.hostId === hostId)
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  const startIdx = cursor ? parseInt(cursor, 10) : 0;
+  const slice = allGames.slice(startIdx, startIdx + limit);
+
+  return {
+    games: slice.map((g) => ({
+      gameCode: g.gameCode,
+      name: g.name,
+      status: g.status,
+      playerCount: g.playerCount,
+      createdAt: g.createdAt,
+    })),
+    nextCursor: startIdx + limit < allGames.length ? String(startIdx + limit) : undefined,
+  };
+}
+
+export async function updateDraftGame(
+  gameCode: string,
+  name?: string,
+  questions?: import('@live-trivia/shared').Question[],
+): Promise<void> {
+  const game = games.get(gameCode);
+  if (!game) return;
+  if (name !== undefined) game.name = name;
+  if (questions !== undefined) game.questions = questions;
+}
+
+export async function deleteGame(gameCode: string): Promise<void> {
+  games.delete(gameCode);
+  players.delete(gameCode);
+  // Delete all answer entries for this game
+  for (const key of answers.keys()) {
+    if (key.startsWith(`${gameCode}#`)) {
+      answers.delete(key);
+    }
+  }
+}
+
+export async function incrementPlayerCount(gameCode: string): Promise<void> {
+  const game = games.get(gameCode);
+  if (game) game.playerCount++;
 }

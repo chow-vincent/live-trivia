@@ -4,9 +4,13 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @live-trivia/shared --filter @live-trivia/server --filter @live-trivia/client dev",
     "build": "pnpm --filter @live-trivia/shared build && pnpm --parallel --filter @live-trivia/server --filter @live-trivia/client build",
-    "deploy": "cd packages/infra && ./deploy.sh"
+    "dev:landing": "pnpm --filter @live-trivia/landing dev",
+    "deploy:app": "cd packages/infra && ./deploy.sh",
+    "deploy:landing": "cd packages/infra && ./deploy-landing.sh"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

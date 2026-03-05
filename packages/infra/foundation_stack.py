@@ -45,6 +45,19 @@ class FoundationStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+        # ─── GSI: Query games by host ───────────────────────
+        self.table.add_global_secondary_index(
+            index_name="hostId-createdAt-index",
+            partition_key=dynamodb.Attribute(
+                name="hostId", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="createdAt", type=dynamodb.AttributeType.NUMBER
+            ),
+            projection_type=dynamodb.ProjectionType.INCLUDE,
+            non_key_attributes=["name", "status", "playerCount", "gameCode"],
+        )
+
         # ─── Outputs ─────────────────────────────────────────
         CfnOutput(
             self,

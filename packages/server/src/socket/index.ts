@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
+import { verifyToken } from '@clerk/express';
 import type { ClientToServerEvents, ServerToClientEvents } from '@live-trivia/shared';
 import { registerHostHandlers } from './host-handlers.js';
 import { registerPlayerHandlers } from './player-handlers.js';
@@ -41,8 +42,24 @@ export function setupSocketIO(httpServer: HttpServer): TypedServer {
     },
   });
 
+  // Optional auth — verify Clerk JWT if provided, attach userId to socket.data
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (token && process.env.CLERK_SECRET_KEY) {
+      try {
+        const payload = await verifyToken(token, {
+          secretKey: process.env.CLERK_SECRET_KEY,
+        });
+        socket.data.userId = payload.sub;
+      } catch {
+        // Invalid token — proceed as unauthenticated (players)
+      }
+    }
+    next();
+  });
+
   io.on('connection', (socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    console.log(`Client connected: ${socket.id}${socket.data.userId ? ` (host: ${socket.data.userId})` : ''}`);
 
     registerHostHandlers(io, socket);
     registerPlayerHandlers(io, socket);

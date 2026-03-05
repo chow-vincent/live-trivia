@@ -48,7 +48,7 @@ export default function GradingPanel({ answers, onSubmitGrades }: GradingPanelPr
         <p className="text-slate-400 mb-4">No answers received for this question.</p>
         <button
           onClick={handleSubmit}
-          className="px-6 py-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-colors"
+          className="px-6 py-3 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 transition-colors"
         >
           Continue (No Answers)
         </button>

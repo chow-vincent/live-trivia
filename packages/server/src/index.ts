@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { setupSocketIO } from './socket/index.js';
 import gamesRouter from './routes/games.js';
+import hostRouter from './routes/host.js';
+import { clerk } from './middleware/auth.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -12,8 +14,12 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json({ limit: '1mb' }));
 
+// Clerk auth — populates req.auth for all routes
+app.use(clerk);
+
 // REST routes
 app.use('/api', gamesRouter);
+app.use('/api/host', hostRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

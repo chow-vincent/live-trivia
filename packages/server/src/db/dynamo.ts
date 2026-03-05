@@ -22,14 +22,16 @@ const ddb = DynamoDBDocumentClient.from(client);
 
 // ─── Game Operations ───────────────────────────────────────────────
 
-export async function createGame(gameCode: string, hostId: string, questions: Question[]): Promise<Game> {
+export async function createGame(gameCode: string, hostId: string, questions: Question[], name: string, status: Game['status'] = 'lobby'): Promise<Game> {
   const game: Game = {
     gameCode,
-    status: 'lobby',
+    name,
+    status,
     questions,
     currentQuestionIdx: -1,
     createdAt: Date.now(),
     hostId,
+    playerCount: 0,
   };
 
   await ddb.send(
@@ -39,7 +41,7 @@ export async function createGame(gameCode: string, hostId: string, questions: Qu
         PK: `GAME#${gameCode}`,
         SK: 'META',
         ...game,
-        ttl: Math.floor(Date.now() / 1000) + 86400, // 24h TTL
+        ttl: Math.floor(Date.now() / 1000) + 7776000, // 90-day TTL
       },
     }),
   );
@@ -200,4 +202,114 @@ export async function getLeaderboard(gameCode: string): Promise<LeaderboardEntry
 
 export async function removePlayer(gameCode: string, playerId: string): Promise<void> {
   // We just leave the record — it's cleaned up by TTL
+}
+
+// ─── Host Dashboard Operations ────────────────────────────────────
+
+export async function getGamesByHost(
+  hostId: string,
+  limit: number = 20,
+  cursor?: string,
+): Promise<{ games: Array<{ gameCode: string; name: string; status: string; playerCount: number; createdAt: number }>; nextCursor?: string }> {
+  const params: Record<string, unknown> = {
+    TableName: TABLE_NAME,
+    IndexName: 'hostId-createdAt-index',
+    KeyConditionExpression: 'hostId = :hostId',
+    ExpressionAttributeValues: { ':hostId': hostId },
+    ScanIndexForward: false, // newest first
+    Limit: limit,
+  };
+
+  if (cursor) {
+    params.ExclusiveStartKey = JSON.parse(Buffer.from(cursor, 'base64url').toString());
+  }
+
+  const result = await ddb.send(new QueryCommand(params as any));
+
+  const games = (result.Items || []).map(({ PK, SK, hostId: _, ...item }) => ({
+    gameCode: item.gameCode as string,
+    name: (item.name as string) || 'Untitled Game',
+    status: item.status as string,
+    playerCount: (item.playerCount as number) || 0,
+    createdAt: item.createdAt as number,
+  }));
+
+  const nextCursor = result.LastEvaluatedKey
+    ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64url')
+    : undefined;
+
+  return { games, nextCursor };
+}
+
+export async function updateDraftGame(
+  gameCode: string,
+  name?: string,
+  questions?: Question[],
+): Promise<void> {
+  const updates: string[] = [];
+  const values: Record<string, unknown> = {};
+  const names: Record<string, string> = {};
+
+  if (name !== undefined) {
+    updates.push('#name = :name');
+    values[':name'] = name;
+    names['#name'] = 'name';
+  }
+
+  if (questions !== undefined) {
+    updates.push('questions = :questions');
+    values[':questions'] = questions;
+  }
+
+  if (updates.length === 0) return;
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `GAME#${gameCode}`, SK: 'META' },
+      UpdateExpression: `SET ${updates.join(', ')}`,
+      ExpressionAttributeValues: values,
+      ...(Object.keys(names).length > 0 && { ExpressionAttributeNames: names }),
+    }),
+  );
+}
+
+export async function deleteGame(gameCode: string): Promise<void> {
+  // Query all items for this game (META, PLAYERs, ANSWERs)
+  const result = await ddb.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk',
+      ExpressionAttributeValues: { ':pk': `GAME#${gameCode}` },
+      ProjectionExpression: 'PK, SK',
+    }),
+  );
+
+  const items = result.Items || [];
+  if (items.length === 0) return;
+
+  // Batch delete in chunks of 25
+  for (let i = 0; i < items.length; i += 25) {
+    const batch = items.slice(i, i + 25);
+    await ddb.send(
+      new BatchWriteCommand({
+        RequestItems: {
+          [TABLE_NAME]: batch.map((item) => ({
+            DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+          })),
+        },
+      }),
+    );
+  }
+}
+
+export async function incrementPlayerCount(gameCode: string): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `GAME#${gameCode}`, SK: 'META' },
+      UpdateExpression: 'SET playerCount = if_not_exists(playerCount, :zero) + :one',
+      ExpressionAttributeValues: { ':zero': 0, ':one': 1 },
+    }),
+  );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket.js';
 import Leaderboard from '../components/Leaderboard.js';
 import GradingPanel from '../components/grading/GradingPanel.js';
@@ -8,7 +9,8 @@ type Phase = 'ready' | 'active' | 'grading' | 'leaderboard' | 'finished';
 
 export default function HostGame() {
   const { socket } = useSocket();
-  const gameCode = sessionStorage.getItem('gameCode') || '';
+  const { code: gameCode = '' } = useParams<{ code: string }>();
+  const navigate = useNavigate();
 
   const [phase, setPhase] = useState<Phase>('ready');
   const [questionIdx, setQuestionIdx] = useState(0);
@@ -72,7 +74,7 @@ export default function HostGame() {
     <div className="flex flex-col items-center px-4 py-10 min-h-dvh w-full max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Game</h1>
-        <span className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 font-mono font-bold text-sm border border-indigo-100">
+        <span className="px-3 py-1 rounded-lg bg-brand-50 text-brand-500 font-mono font-bold text-sm border border-brand-100">
           {gameCode}
         </span>
       </div>
@@ -82,7 +84,7 @@ export default function HostGame() {
           <p className="text-slate-500 mb-5">Ready to start the first question?</p>
           <button
             onClick={() => startQuestion(0)}
-            className="px-8 py-3.5 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 active:scale-[0.98] transition-all"
+            className="px-8 py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 active:scale-[0.98] transition-all"
           >
             Start Question 1
           </button>
@@ -93,7 +95,7 @@ export default function HostGame() {
         <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           <p className="text-sm font-medium text-slate-400 mb-2">Question {questionIdx + 1}</p>
           <p className="text-xl font-semibold text-slate-800 mb-2">Question is live!</p>
-          <p className="text-3xl font-bold text-indigo-600 tabular-nums mb-6">
+          <p className="text-3xl font-bold text-brand-400 tabular-nums mb-6">
             {answersReceived} answer{answersReceived !== 1 ? 's' : ''} received
           </p>
           <button
@@ -123,7 +125,7 @@ export default function HostGame() {
           <div className="text-center mt-6">
             <button
               onClick={nextQuestion}
-              className="px-8 py-3.5 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 active:scale-[0.98] transition-all"
+              className="px-8 py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 active:scale-[0.98] transition-all"
             >
               Next Question
             </button>
@@ -136,6 +138,14 @@ export default function HostGame() {
           <h1 className="text-2xl font-bold text-center text-slate-900 mb-1">Game Over!</h1>
           <p className="text-center text-slate-500 font-medium mb-6">Final Results</p>
           <Leaderboard rankings={rankings} />
+          <div className="text-center mt-6">
+            <button
+              onClick={() => navigate(`/host/games/${gameCode}`)}
+              className="px-8 py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 active:scale-[0.98] transition-all"
+            >
+              View Full Results
+            </button>
+          </div>
         </div>
       )}
     </div>

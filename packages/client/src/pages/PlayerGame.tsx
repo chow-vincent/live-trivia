@@ -78,7 +78,7 @@ export default function PlayerGame() {
 
       {phase === 'waiting' && (
         <div className="flex-1 flex flex-col items-center justify-center text-center py-16">
-          <div className="w-8 h-8 border-[3px] border-gray-200 border-t-indigo-500 rounded-full animate-spin mb-4" />
+          <div className="w-8 h-8 border-[3px] border-gray-200 border-t-brand-300 rounded-full animate-spin mb-4" />
           <p className="text-slate-400 font-medium">Waiting for the host to start...</p>
         </div>
       )}
@@ -110,7 +110,7 @@ export default function PlayerGame() {
 
       {phase === 'closed' && (
         <div className="flex-1 flex flex-col items-center justify-center text-center py-16">
-          <div className="w-8 h-8 border-[3px] border-gray-200 border-t-indigo-500 rounded-full animate-spin mb-4" />
+          <div className="w-8 h-8 border-[3px] border-gray-200 border-t-brand-300 rounded-full animate-spin mb-4" />
           <p className="text-slate-400 font-medium">Host is grading answers...</p>
         </div>
       )}
@@ -119,7 +119,7 @@ export default function PlayerGame() {
         <div className="w-full">
           <h1 className="text-2xl font-bold text-center text-slate-900 mb-1">Leaderboard</h1>
           {yourRank && (
-            <p className="text-center text-indigo-500 font-semibold mb-5">
+            <p className="text-center text-brand-400 font-semibold mb-5">
               You're #{yourRank}!
             </p>
           )}

@@ -25,8 +25,8 @@ export default function RankingGrading({ answer, points, onPointsChange }: Gradi
             onClick={() => onPointsChange(autoScore)}
             className={`px-3 py-1.5 rounded-lg border-2 text-sm font-semibold min-h-[36px] transition-colors ${
               points === autoScore
-                ? 'bg-indigo-500 text-white border-indigo-500'
-                : 'bg-white text-slate-600 border-gray-200 hover:border-indigo-300'
+                ? 'bg-brand-300 text-white border-brand-300'
+                : 'bg-white text-slate-600 border-gray-200 hover:border-brand-200'
             }`}
           >
             {autoScore} (auto)
@@ -48,7 +48,7 @@ export default function RankingGrading({ answer, points, onPointsChange }: Gradi
           max={maxPoints}
           value={points}
           onChange={(e) => onPointsChange(Math.max(0, Math.min(maxPoints, parseInt(e.target.value) || 0)))}
-          className="w-14 px-2 py-1.5 rounded-lg border-2 border-gray-200 bg-slate-50 text-slate-800 text-center text-sm font-semibold focus:outline-none focus:border-indigo-500"
+          className="w-14 px-2 py-1.5 rounded-lg border-2 border-gray-200 bg-slate-50 text-slate-800 text-center text-sm font-semibold focus:outline-none focus:border-brand-300"
         />
       </div>
       <p className="text-sm text-slate-400">

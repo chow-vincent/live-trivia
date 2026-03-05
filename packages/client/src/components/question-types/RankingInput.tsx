@@ -38,7 +38,7 @@ function SortableItem({ id, index }: { id: string; index: number }) {
       ref={setNodeRef}
       style={style}
       className={`flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white border-2 cursor-grab active:cursor-grabbing touch-none select-none transition-colors ${
-        isDragging ? 'opacity-50 border-indigo-400 shadow-lg' : 'border-gray-200'
+        isDragging ? 'opacity-50 border-brand-300 shadow-lg' : 'border-gray-200'
       }`}
       {...attributes}
       {...listeners}
@@ -100,7 +100,7 @@ export default function RankingInput({ question, onSubmit, disabled }: Props) {
       <button
         onClick={handleSubmit}
         disabled={disabled}
-        className="w-full py-3.5 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+        className="w-full py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
       >
         Submit Answer
       </button>

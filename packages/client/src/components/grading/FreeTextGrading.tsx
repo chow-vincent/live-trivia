@@ -4,7 +4,7 @@ import type { FreeTextAnswer } from '@live-trivia/shared';
 function ScoreButton({ label, active, variant, onClick }: { label: string | number; active: boolean; variant: 'danger' | 'primary' | 'success'; onClick: () => void }) {
   const styles = {
     danger: active ? 'bg-red-500 text-white border-red-500' : 'bg-white text-slate-600 border-gray-200 hover:border-red-300',
-    primary: active ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white text-slate-600 border-gray-200 hover:border-indigo-300',
+    primary: active ? 'bg-brand-300 text-white border-brand-300' : 'bg-white text-slate-600 border-gray-200 hover:border-brand-200',
     success: active ? 'bg-green-500 text-white border-green-500' : 'bg-white text-slate-600 border-gray-200 hover:border-green-300',
   };
 
@@ -38,7 +38,7 @@ export default function FreeTextGrading({ answer, points, onPointsChange }: Grad
         max={maxPoints}
         value={points}
         onChange={(e) => onPointsChange(Math.max(0, Math.min(maxPoints, parseInt(e.target.value) || 0)))}
-        className="w-14 px-2 py-1.5 rounded-lg border-2 border-gray-200 bg-slate-50 text-slate-800 text-center text-sm font-semibold focus:outline-none focus:border-indigo-500"
+        className="w-14 px-2 py-1.5 rounded-lg border-2 border-gray-200 bg-slate-50 text-slate-800 text-center text-sm font-semibold focus:outline-none focus:border-brand-300"
       />
       {isAutoGraded && (
         <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-700">Auto</span>

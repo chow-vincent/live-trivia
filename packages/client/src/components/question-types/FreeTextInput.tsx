@@ -25,12 +25,12 @@ export default function FreeTextInput({ question, onSubmit, disabled }: Props) {
         onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
         disabled={disabled}
         autoFocus
-        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-slate-50 text-slate-900 text-lg placeholder:text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-slate-50 text-slate-900 text-lg placeholder:text-slate-300 focus:outline-none focus:border-brand-300 transition-colors disabled:opacity-50"
       />
       <button
         onClick={handleSubmit}
         disabled={disabled || !text.trim()}
-        className="w-full py-3.5 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+        className="w-full py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
       >
         Submit Answer
       </button>

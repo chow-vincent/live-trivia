@@ -40,7 +40,7 @@ router.post('/games', async (req, res) => {
 
     const gameCode = await generateUniqueGameCode();
     const hostId = nanoid(12);
-    const game = await db.createGame(gameCode, hostId, questions);
+    const game = await db.createGame(gameCode, hostId, questions, 'Untitled Game');
 
     res.status(201).json({
       gameCode: game.gameCode,

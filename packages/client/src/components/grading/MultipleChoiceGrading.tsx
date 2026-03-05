@@ -40,7 +40,7 @@ export default function MultipleChoiceGrading({ answer, points, onPointsChange }
         max={maxPoints}
         value={points}
         onChange={(e) => onPointsChange(Math.max(0, Math.min(maxPoints, parseInt(e.target.value) || 0)))}
-        className="w-14 px-2 py-1.5 rounded-lg border-2 border-gray-200 bg-slate-50 text-slate-800 text-center text-sm font-semibold focus:outline-none focus:border-indigo-500"
+        className="w-14 px-2 py-1.5 rounded-lg border-2 border-gray-200 bg-slate-50 text-slate-800 text-center text-sm font-semibold focus:outline-none focus:border-brand-300"
       />
       {isCorrect && (
         <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-700">Auto</span>

@@ -12,7 +12,7 @@ export default function SignInPage() {
         forceRedirectUrl="/host"
         appearance={{
           variables: {
-            colorPrimary: '#6366f1',
+            colorPrimary: '#f5b306',
             borderRadius: '0.75rem',
             fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',
           },
@@ -21,8 +21,8 @@ export default function SignInPage() {
             socialButtonsBlockButton:
               'border-2 border-gray-200 bg-slate-50 hover:bg-slate-100 transition-colors',
             formButtonPrimary:
-              'bg-indigo-500 hover:bg-indigo-600 active:scale-[0.98] transition-all text-lg font-semibold',
-            footerActionLink: 'text-indigo-500 hover:text-indigo-600 font-medium',
+              'bg-brand-300 hover:bg-brand-400 text-slate-900 active:scale-[0.98] transition-all text-lg font-semibold',
+            footerActionLink: 'text-brand-500 hover:text-brand-400 font-medium',
           },
         }}
       />

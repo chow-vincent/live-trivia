@@ -23,3 +23,7 @@ export const getAnswersForQuestion = db.getAnswersForQuestion;
 export const gradeAnswers = db.gradeAnswers;
 export const getLeaderboard = db.getLeaderboard;
 export const removePlayer = db.removePlayer;
+export const getGamesByHost = db.getGamesByHost;
+export const updateDraftGame = db.updateDraftGame;
+export const deleteGame = db.deleteGame;
+export const incrementPlayerCount = db.incrementPlayerCount;

@@ -21,7 +21,7 @@ export default function Leaderboard({ rankings, yourPlayerId }: LeaderboardProps
             key={entry.playerId}
             className={`flex items-center px-5 py-3.5 rounded-xl transition-colors ${
               isYou
-                ? 'bg-indigo-50 border border-indigo-200'
+                ? 'bg-brand-50 border border-brand-200'
                 : 'bg-white border border-gray-100'
             }`}
           >
@@ -30,9 +30,9 @@ export default function Leaderboard({ rankings, yourPlayerId }: LeaderboardProps
             </span>
             <span className="flex-1 font-medium text-slate-800">
               {entry.displayName}
-              {isYou && <span className="text-indigo-500 ml-1.5 text-sm font-semibold">(You)</span>}
+              {isYou && <span className="text-brand-400 ml-1.5 text-sm font-semibold">(You)</span>}
             </span>
-            <span className="font-bold text-indigo-600 tabular-nums">
+            <span className="font-bold text-brand-400 tabular-nums">
               {entry.totalScore} pts
             </span>
           </div>

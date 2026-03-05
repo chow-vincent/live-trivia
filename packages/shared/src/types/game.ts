@@ -2,17 +2,19 @@ import type { Question, Answer } from './question.js';
 
 // ─── Game Status ───────────────────────────────────────────────────
 
-export type GameStatus = 'lobby' | 'active' | 'grading' | 'leaderboard' | 'finished';
+export type GameStatus = 'draft' | 'lobby' | 'active' | 'grading' | 'leaderboard' | 'finished';
 
 // ─── Game ──────────────────────────────────────────────────────────
 
 export interface Game {
   gameCode: string;
+  name: string;
   status: GameStatus;
   questions: Question[];
   currentQuestionIdx: number;
   createdAt: number;
   hostId: string;
+  playerCount: number;
 }
 
 // ─── Player ────────────────────────────────────────────────────────

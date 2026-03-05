@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket.js';
+import { QRCodeSVG } from 'qrcode.react';
 import type { Player } from '@live-trivia/shared';
 
 interface PendingPlayer {
@@ -10,12 +11,15 @@ interface PendingPlayer {
 
 export default function HostLobby() {
   const navigate = useNavigate();
+  const { code: gameCode = '' } = useParams<{ code: string }>();
   const { socket, connected } = useSocket();
-  const gameCode = sessionStorage.getItem('gameCode') || '';
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [pending, setPending] = useState<PendingPlayer[]>([]);
+  const [copied, setCopied] = useState(false);
   const hasJoined = useRef(false);
+
+  const joinUrl = `https://hostedtrivia.com/play?code=${gameCode}`;
 
   useEffect(() => {
     if (!socket || !connected || !gameCode || hasJoined.current) return;
@@ -27,7 +31,6 @@ export default function HostLobby() {
     if (!socket) return;
 
     const onPlayerJoined = (data: { player: Player }) => {
-      // Remove from pending when approved and joined
       setPending((prev) => prev.filter((p) => p.playerId !== data.player.playerId));
       setPlayers((prev) => [...prev, data.player]);
     };
@@ -61,18 +64,40 @@ export default function HostLobby() {
   };
 
   const handleStart = () => {
-    navigate('/host/game');
+    navigate(`/host/games/${gameCode}/live`);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(joinUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="flex flex-col items-center px-4 py-10 min-h-dvh w-full max-w-3xl mx-auto">
-      <h1 className="text-3xl font-extrabold text-slate-900 mb-1">Game Lobby</h1>
-      <p className="text-slate-500 font-medium mb-8">Share this code with your players</p>
+    <div className="flex flex-col items-center px-4 py-6 min-h-[70vh] w-full max-w-3xl mx-auto">
+      <Link to="/host/games" className="self-start text-sm text-slate-500 hover:text-slate-700 mb-4">
+        &larr; Back to Games
+      </Link>
 
-      <div className="w-full bg-indigo-50 border border-indigo-100 rounded-2xl py-6 px-4 mb-6">
-        <p className="text-5xl font-extrabold tracking-[0.3em] text-indigo-600 text-center font-mono">
-          {gameCode}
-        </p>
+      <h1 className="text-3xl font-extrabold text-slate-900 mb-1">Game Lobby</h1>
+      <p className="text-slate-500 font-medium mb-6">Share this code with your players</p>
+
+      {/* Game code + QR */}
+      <div className="w-full flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1 bg-brand-50 border border-brand-100 rounded-2xl py-6 px-4 flex flex-col items-center justify-center">
+          <p className="text-5xl font-extrabold tracking-[0.3em] text-brand-500 font-mono">
+            {gameCode}
+          </p>
+          <button
+            onClick={handleCopyLink}
+            className="mt-3 px-4 py-1.5 rounded-lg bg-brand-100 text-brand-500 text-sm font-medium hover:bg-brand-200 transition-colors"
+          >
+            {copied ? 'Copied!' : 'Copy join link'}
+          </button>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-center">
+          <QRCodeSVG value={joinUrl} size={140} />
+        </div>
       </div>
 
       {/* Pending players */}
@@ -114,7 +139,7 @@ export default function HostLobby() {
 
         {players.length === 0 && pending.length === 0 ? (
           <div className="flex items-center gap-3 py-4">
-            <div className="w-5 h-5 border-2 border-gray-200 border-t-indigo-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-gray-200 border-t-brand-300 rounded-full animate-spin" />
             <p className="text-slate-400 text-sm">Waiting for players to join...</p>
           </div>
         ) : players.length === 0 ? (
@@ -124,7 +149,7 @@ export default function HostLobby() {
             {players.map((p) => (
               <span
                 key={p.playerId}
-                className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 text-sm font-medium border border-indigo-100"
+                className="px-4 py-2 rounded-full bg-brand-50 text-brand-500 text-sm font-medium border border-brand-100"
               >
                 {p.displayName}
               </span>
