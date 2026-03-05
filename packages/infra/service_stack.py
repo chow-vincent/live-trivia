@@ -11,6 +11,8 @@ from aws_cdk import (
     aws_route53 as route53,
     aws_route53_targets as targets,
     aws_elasticloadbalancingv2 as elbv2,
+    aws_secretsmanager as sm,
+    aws_ssm as ssm,
 )
 from constructs import Construct
 
@@ -66,6 +68,14 @@ class ServiceStack(Stack):
             validation=acm.CertificateValidation.from_dns(hosted_zone),
         )
 
+        # ─── Clerk auth config ──────────────────────────────
+        clerk_secret = sm.Secret.from_secret_name_v2(
+            self, "ClerkSecret", "live-trivia/clerk-secret-key"
+        )
+        clerk_publishable_key = ssm.StringParameter.from_string_parameter_name(
+            self, "ClerkPublishableKey", "/live-trivia/clerk-publishable-key"
+        )
+
         # ─── Fargate Service + ALB ───────────────────────────
         service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -93,6 +103,10 @@ class ServiceStack(Stack):
                     "USE_DYNAMODB": "true",
                     "NODE_ENV": "production",
                     "PORT": "3001",
+                },
+                secrets={
+                    "CLERK_SECRET_KEY": ecs.Secret.from_secrets_manager(clerk_secret),
+                    "CLERK_PUBLISHABLE_KEY": ecs.Secret.from_ssm_parameter(clerk_publishable_key),
                 },
                 log_driver=ecs.LogDrivers.aws_logs(stream_prefix="live-trivia"),
             ),
