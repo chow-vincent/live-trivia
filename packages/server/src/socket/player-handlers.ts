@@ -100,6 +100,12 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
       return;
     }
 
+    const activeGame = getActiveGame(gameCode);
+    if (!activeGame?.playerSockets.has(playerId)) {
+      socket.emit('error', { message: 'Not an approved player' });
+      return;
+    }
+
     const game = await db.getGame(gameCode);
     if (!game || game.status !== 'active') {
       socket.emit('error', { message: 'No active question' });
@@ -113,11 +119,11 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
       return;
     }
 
-    // Save answer
-    await db.submitAnswer(gameCode, playerId, displayName, game.currentQuestionIdx, answer);
+    // Save answer (include wager amount if this is a wager round)
+    const wager = activeGame?.wagers.get(playerId);
+    await db.submitAnswer(gameCode, playerId, displayName, game.currentQuestionIdx, answer, wager);
 
     // Notify host that an answer was received
-    const activeGame = getActiveGame(gameCode);
     if (activeGame) {
       io.to(activeGame.hostSocketId).emit('answer_received', { playerId, displayName });
     }

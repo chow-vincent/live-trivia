@@ -186,7 +186,7 @@ export default function HostGame() {
           <h2 className="text-xl font-bold text-slate-900 mb-5">
             Grade Answers — Question {questionIdx + 1}
           </h2>
-          <GradingPanel answers={answers} onSubmitGrades={submitGrades} />
+          <GradingPanel answers={answers} onSubmitGrades={submitGrades} questionText={questionText} questionImageUrl={questionImageUrl} />
         </div>
       )}
 

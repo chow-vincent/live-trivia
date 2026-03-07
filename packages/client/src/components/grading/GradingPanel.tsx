@@ -8,6 +8,8 @@ import TrueFalseGrading from './TrueFalseGrading.js';
 interface GradingPanelProps {
   answers: PlayerAnswerForHost[];
   onSubmitGrades: (grades: GradeEntry[]) => void;
+  questionText?: string;
+  questionImageUrl?: string;
 }
 
 interface GradingRowProps {
@@ -23,7 +25,7 @@ const gradingRenderers: Record<string, React.FC<GradingRowProps>> = {
   true_false: TrueFalseGrading,
 };
 
-export default function GradingPanel({ answers, onSubmitGrades }: GradingPanelProps) {
+export default function GradingPanel({ answers, onSubmitGrades, questionText, questionImageUrl }: GradingPanelProps) {
   const [grades, setGrades] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     for (const a of answers) {
@@ -60,6 +62,15 @@ export default function GradingPanel({ answers, onSubmitGrades }: GradingPanelPr
 
   return (
     <div className="space-y-3">
+      {questionText && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-1">
+          <p className="text-lg font-semibold text-slate-800 text-center">{questionText}</p>
+          {questionImageUrl && (
+            <img src={questionImageUrl} alt="" className="max-h-48 object-contain rounded-xl mx-auto mt-3" />
+          )}
+        </div>
+      )}
+
       {answers.map((a) => {
         const GradingComponent = gradingRenderers[a.answer.type];
         if (!GradingComponent) {

@@ -145,7 +145,7 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     if (!gameCode) return;
 
     const game = await db.getGame(gameCode);
-    if (!game) return;
+    if (!game || game.status !== 'active') return;
 
     const activeGame = getActiveGame(gameCode);
     if (activeGame) {
@@ -162,11 +162,11 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     if (!gameCode) return;
 
     const game = await db.getGame(gameCode);
-    if (!game) return;
+    if (!game || game.status !== 'active') return;
 
     const questionIdx = game.currentQuestionIdx;
     const question = game.questions[questionIdx];
-    if (!question) return;
+    if (!question || !question.wager) return;
 
     const plugin = getQuestionPlugin(question.type);
     const safeQuestion = (plugin ? plugin.stripCorrectAnswer(question) : question) as QuestionForPlayer;
@@ -247,23 +247,27 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
       joinedAt: Date.now(),
     };
 
+    // Check if the player's socket is still connected
+    const playerSocket = io.sockets.sockets.get(pending.socketId);
+    if (!playerSocket) {
+      socket.emit('error', { message: `Player "${pending.displayName}" has disconnected.` });
+      console.log(`Player "${pending.displayName}" disconnected before approval in game ${gameCode}`);
+      return;
+    }
+
     await db.addPlayer(gameCode, player);
     await db.incrementPlayerCount(gameCode);
     activeGame.playerSockets.set(playerId, pending.socketId);
 
-    // Put the player's socket into the game room
-    const playerSocket = io.sockets.sockets.get(pending.socketId);
-    if (playerSocket) {
-      playerSocket.join(`game:${gameCode}`);
-      (playerSocket as any).playerId = playerId;
-      (playerSocket as any).gameCode = gameCode;
-      (playerSocket as any).displayName = pending.displayName;
+    playerSocket.join(`game:${gameCode}`);
+    (playerSocket as any).playerId = playerId;
+    (playerSocket as any).gameCode = gameCode;
+    (playerSocket as any).displayName = pending.displayName;
 
-      playerSocket.emit('join_success', {
-        playerId,
-        game: { gameCode, status: 'lobby' },
-      });
-    }
+    playerSocket.emit('join_success', {
+      playerId,
+      game: { gameCode, status: 'lobby' },
+    });
 
     // Notify everyone a player joined
     io.to(`game:${gameCode}`).emit('player_joined', { player });
@@ -347,6 +351,10 @@ async function handleQuestionTimeout(
   questionIdx: number,
   questions: Question[],
 ): Promise<void> {
+  // Clean up the timer entry
+  const activeGame = getActiveGame(gameCode);
+  activeGame?.timers.delete(questionIdx);
+
   // Notify players that the question is closed
   io.to(`game:${gameCode}`).emit('question_closed');
 
@@ -356,7 +364,6 @@ async function handleQuestionTimeout(
   const answers = await db.getAnswersForQuestion(gameCode, questionIdx);
   const question = questions[questionIdx];
   const plugin = getQuestionPlugin(question.type);
-  const activeGame = getActiveGame(gameCode);
   const isWager = question.wager === true;
 
   const answersForHost = answers.map((a) => {
