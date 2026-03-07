@@ -132,6 +132,7 @@ export async function submitAnswer(
   displayName: string,
   questionIdx: number,
   answer: Answer,
+  wager?: number,
 ): Promise<void> {
   await ddb.send(
     new PutCommand({
@@ -146,6 +147,7 @@ export async function submitAnswer(
         submittedAt: Date.now(),
         pointsAwarded: null,
         graded: false,
+        ...(wager !== undefined && { wager }),
       },
     }),
   );
@@ -312,4 +314,19 @@ export async function incrementPlayerCount(gameCode: string): Promise<void> {
       ExpressionAttributeValues: { ':zero': 0, ':one': 1 },
     }),
   );
+}
+
+export async function clampPlayerScore(gameCode: string, playerId: string): Promise<void> {
+  const players = await getPlayers(gameCode);
+  const player = players.find((p) => p.playerId === playerId);
+  if (player && player.totalScore < 0) {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: `GAME#${gameCode}`, SK: `PLAYER#${playerId}` },
+        UpdateExpression: 'SET totalScore = :zero',
+        ExpressionAttributeValues: { ':zero': 0 },
+      }),
+    );
+  }
 }

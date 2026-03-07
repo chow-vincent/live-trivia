@@ -22,6 +22,7 @@ export interface ActiveGame {
   timers: Map<number, NodeJS.Timeout>;       // questionIdx → timer
   playerSockets: Map<string, string>;        // playerId → socketId
   pendingPlayers: Map<string, PendingPlayer>; // playerId → pending info
+  wagers: Map<string, number>;               // playerId → wager amount (current question)
 }
 
 const activeGames = new Map<string, ActiveGame>();

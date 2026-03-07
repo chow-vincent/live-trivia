@@ -172,6 +172,30 @@ export default function QuestionEditor({ questions, onChange }: Props) {
               />
             )}
 
+            {/* Image URL */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Image URL <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                type="url"
+                value={current.imageUrl || ''}
+                onChange={(e) => updateQuestion(selectedIdx, { imageUrl: e.target.value || undefined } as any)}
+                placeholder="Paste an image URL..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+              {current.imageUrl && (
+                <div className="mt-2 relative inline-block">
+                  <img src={current.imageUrl} alt="" className="max-h-32 rounded-lg border border-slate-200" />
+                  <button
+                    type="button"
+                    onClick={() => updateQuestion(selectedIdx, { imageUrl: undefined } as any)}
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600"
+                  >
+                    x
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Time + Points */}
             <div className="flex gap-4">
               <div className="w-32">
@@ -198,6 +222,32 @@ export default function QuestionEditor({ questions, onChange }: Props) {
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-300"
                 />
               </div>
+            </div>
+
+            {/* Wager toggle */}
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={current.wager || false}
+                  onChange={(e) => updateQuestion(selectedIdx, { wager: e.target.checked || undefined, wagerTimeLimit: e.target.checked ? (current.wagerTimeLimit || 15) : undefined } as any)}
+                  className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-300"
+                />
+                <span className="text-sm font-medium text-slate-700">Wager round</span>
+              </label>
+              {current.wager && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-slate-500">Wager time (sec)</label>
+                  <input
+                    type="number"
+                    value={current.wagerTimeLimit || 15}
+                    onChange={(e) => updateQuestion(selectedIdx, { wagerTimeLimit: e.target.value === '' ? 15 : Math.min(Math.max(parseInt(e.target.value), 5), 60) } as any)}
+                    min={5}
+                    max={60}
+                    className="w-20 px-2 py-1 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

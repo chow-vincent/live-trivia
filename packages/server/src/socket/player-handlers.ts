@@ -47,6 +47,48 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
     console.log(`Player "${safeName}" pending approval in game ${gameCode}`);
   });
 
+  socket.on('player:submit_wager', async (data: { wager: number }) => {
+    const playerId = (socket as any).playerId as string | undefined;
+    const gameCode = (socket as any).gameCode as string | undefined;
+
+    if (!playerId || !gameCode) {
+      socket.emit('error', { message: 'Not in a game' });
+      return;
+    }
+
+    const activeGame = getActiveGame(gameCode);
+    if (!activeGame) return;
+
+    // Cap wager to player's current score (server-side validation)
+    const players = await db.getPlayers(gameCode);
+    const player = players.find((p) => p.playerId === playerId);
+    const maxWager = Math.max(0, player?.totalScore ?? 0);
+    const safeWager = Math.max(0, Math.min(data.wager, maxWager));
+
+    activeGame.wagers.set(playerId, safeWager);
+
+    // Notify host
+    io.to(activeGame.hostSocketId).emit('wager_locked', { playerId });
+
+    // Check if all players have locked in — if so, notify host early
+    const allLocked = Array.from(activeGame.playerSockets.keys()).every(
+      (pid) => activeGame.wagers.has(pid),
+    );
+    if (allLocked) {
+      // Clear the wager timer and tell host all wagers are in
+      const game = await db.getGame(gameCode);
+      if (game) {
+        const wagerTimer = activeGame.timers.get(game.currentQuestionIdx);
+        if (wagerTimer) clearTimeout(wagerTimer);
+        activeGame.timers.delete(game.currentQuestionIdx);
+      }
+      io.to(activeGame.hostSocketId).emit('wagers_complete');
+      console.log(`Game ${gameCode}: All wagers locked, waiting for host to start answer phase`);
+    }
+
+    console.log(`Player ${playerId} wagered ${safeWager} in game ${gameCode}`);
+  });
+
   socket.on('player:submit_answer', async (data: { answer: Answer }) => {
     const { answer } = data;
     const playerId = (socket as any).playerId as string | undefined;

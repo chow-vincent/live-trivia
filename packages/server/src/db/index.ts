@@ -27,3 +27,4 @@ export const getGamesByHost = db.getGamesByHost;
 export const updateDraftGame = db.updateDraftGame;
 export const deleteGame = db.deleteGame;
 export const incrementPlayerCount = db.incrementPlayerCount;
+export const clampPlayerScore = db.clampPlayerScore;

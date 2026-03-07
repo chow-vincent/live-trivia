@@ -44,6 +44,7 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
         timers: new Map(),
         playerSockets: new Map(),
         pendingPlayers: new Map(),
+        wagers: new Map(),
       };
       setActiveGame(gameCode, activeGame);
       console.log(`Host joined game ${gameCode}`);
@@ -72,31 +73,70 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     const plugin = getQuestionPlugin(question.type);
     const safeQuestion = (plugin ? plugin.stripCorrectAnswer(question) : question) as QuestionForPlayer;
 
-    const endTime = Date.now() + question.timeLimit * 1000;
-
-    // Send question to all players in the game room
-    io.to(`game:${gameCode}`).emit('question', {
-      question: safeQuestion,
-      questionIdx,
-      totalQuestions: game.questions.length,
-      endTime,
-    });
-
-    // Set server-side timer
     const activeGame = getActiveGame(gameCode);
-    if (activeGame) {
-      // Clear any existing timer for this question
-      const existingTimer = activeGame.timers.get(questionIdx);
-      if (existingTimer) clearTimeout(existingTimer);
+    if (!activeGame) return;
+
+    // Clear any existing timer
+    const existingTimer = activeGame.timers.get(questionIdx);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    if (question.wager) {
+      // ── Wager phase ──
+      activeGame.wagers.clear();
+      const wagerTime = question.wagerTimeLimit || 15;
+      const wagerEndTime = Date.now() + wagerTime * 1000;
+
+      // Send personalized wager_phase to each player (maxWager = their current score)
+      const players = await db.getPlayers(gameCode);
+      for (const [playerId, socketId] of activeGame.playerSockets.entries()) {
+        const player = players.find((p) => p.playerId === playerId);
+        const maxWager = Math.max(0, player?.totalScore ?? 0);
+        io.to(socketId).emit('wager_phase', {
+          question: safeQuestion,
+          questionIdx,
+          totalQuestions: game.questions.length,
+          wagerEndTime,
+          maxWager,
+        });
+      }
+
+      // Wager timer — when it expires, notify host that wagers are done (host decides when to start)
+      const wagerTimer = setTimeout(() => {
+        // Clear the timer and notify host
+        activeGame.timers.delete(questionIdx);
+        io.to(activeGame.hostSocketId).emit('wagers_complete');
+        console.log(`Game ${gameCode}: Wager phase ended for question ${questionIdx + 1}, waiting for host`);
+      }, wagerTime * 1000);
+      activeGame.timers.set(questionIdx, wagerTimer);
+
+      // Also emit wager_phase to host so their UI updates
+      io.to(activeGame.hostSocketId).emit('wager_phase', {
+        question: safeQuestion,
+        questionIdx,
+        totalQuestions: game.questions.length,
+        wagerEndTime: wagerEndTime,
+        maxWager: 0,
+      });
+
+      console.log(`Game ${gameCode}: Wager phase for question ${questionIdx + 1}/${game.questions.length}`);
+    } else {
+      // ── Normal question flow ──
+      const endTime = Date.now() + question.timeLimit * 1000;
+
+      io.to(`game:${gameCode}`).emit('question', {
+        question: safeQuestion,
+        questionIdx,
+        totalQuestions: game.questions.length,
+        endTime,
+      });
 
       const timer = setTimeout(async () => {
         await handleQuestionTimeout(io, gameCode, questionIdx, game.questions);
       }, question.timeLimit * 1000);
-
       activeGame.timers.set(questionIdx, timer);
-    }
 
-    console.log(`Game ${gameCode}: Started question ${questionIdx + 1}/${game.questions.length}`);
+      console.log(`Game ${gameCode}: Started question ${questionIdx + 1}/${game.questions.length}`);
+    }
   });
 
   // Host manually ends the current question early
@@ -116,6 +156,24 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     await handleQuestionTimeout(io, gameCode, game.currentQuestionIdx, game.questions);
   });
 
+  // Host triggers answer phase after wagers are done
+  socket.on('host:start_answer_phase', async () => {
+    const gameCode = getGameCodeFromSocket(socket);
+    if (!gameCode) return;
+
+    const game = await db.getGame(gameCode);
+    if (!game) return;
+
+    const questionIdx = game.currentQuestionIdx;
+    const question = game.questions[questionIdx];
+    if (!question) return;
+
+    const plugin = getQuestionPlugin(question.type);
+    const safeQuestion = (plugin ? plugin.stripCorrectAnswer(question) : question) as QuestionForPlayer;
+
+    startAnswerPhase(io, gameCode, questionIdx, question, safeQuestion, game.questions);
+  });
+
   // Host submits grades for the current question
   socket.on('host:grade_answers', async (data: { grades: GradeEntry[] }) => {
     const { grades } = data;
@@ -126,7 +184,18 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     if (!game) return;
 
     // Save grades and update scores
+    const question = game.questions[game.currentQuestionIdx];
     await db.gradeAnswers(gameCode, game.currentQuestionIdx, grades);
+
+    // Clamp scores to 0 for wager rounds (negative points possible)
+    if (question?.wager) {
+      const players = await db.getPlayers(gameCode);
+      for (const p of players) {
+        if (p.totalScore < 0) {
+          await db.clampPlayerScore(gameCode, p.playerId);
+        }
+      }
+    }
 
     // Get updated leaderboard
     const leaderboard = await db.getLeaderboard(gameCode);
@@ -237,6 +306,41 @@ function getGameCodeFromSocket(socket: TypedSocket): string | null {
   return null;
 }
 
+function startAnswerPhase(
+  io: TypedServer,
+  gameCode: string,
+  questionIdx: number,
+  question: Question,
+  safeQuestion: QuestionForPlayer,
+  questions: Question[],
+): void {
+  const activeGame = getActiveGame(gameCode);
+  if (!activeGame) return;
+
+  // Clear wager timer
+  const wagerTimer = activeGame.timers.get(questionIdx);
+  if (wagerTimer) clearTimeout(wagerTimer);
+
+  const endTime = Date.now() + question.timeLimit * 1000;
+
+  // Tell players wager phase is over, start answering
+  io.to(`game:${gameCode}`).emit('answer_phase', { endTime });
+  io.to(`game:${gameCode}`).emit('question', {
+    question: safeQuestion,
+    questionIdx,
+    totalQuestions: questions.length,
+    endTime,
+  });
+
+  // Set answer timer
+  const timer = setTimeout(async () => {
+    await handleQuestionTimeout(io, gameCode, questionIdx, questions);
+  }, question.timeLimit * 1000);
+  activeGame.timers.set(questionIdx, timer);
+
+  console.log(`Game ${gameCode}: Answer phase for question ${questionIdx + 1}`);
+}
+
 async function handleQuestionTimeout(
   io: TypedServer,
   gameCode: string,
@@ -252,12 +356,23 @@ async function handleQuestionTimeout(
   const answers = await db.getAnswersForQuestion(gameCode, questionIdx);
   const question = questions[questionIdx];
   const plugin = getQuestionPlugin(question.type);
+  const activeGame = getActiveGame(gameCode);
+  const isWager = question.wager === true;
 
   const answersForHost = answers.map((a) => {
     let autoGradeResult = null;
     if (plugin) {
       try {
         autoGradeResult = plugin.autoGrade(question, a.answer);
+        // For wager rounds, adjust score based on wager amount
+        if (isWager && autoGradeResult && activeGame) {
+          const wager = activeGame.wagers.get(a.playerId) ?? 0;
+          const isCorrect = autoGradeResult.score > 0;
+          autoGradeResult = {
+            score: isCorrect ? wager : -wager,
+            maxScore: wager,
+          };
+        }
       } catch {
         // Auto-grade failed — host will grade manually
       }
@@ -268,11 +383,11 @@ async function handleQuestionTimeout(
       displayName: a.displayName,
       answer: a.answer,
       autoGradeResult,
+      wager: isWager ? (activeGame?.wagers.get(a.playerId) ?? 0) : undefined,
     };
   });
 
   // Send answers to host for grading
-  const activeGame = getActiveGame(gameCode);
   if (activeGame) {
     io.to(activeGame.hostSocketId).emit('all_answers', { answers: answersForHost });
   }

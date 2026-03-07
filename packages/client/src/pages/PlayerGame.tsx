@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '../hooks/useSocket.js';
 import QuestionRenderer from '../components/question-types/QuestionRenderer.js';
+import WagerSelector from '../components/WagerSelector.js';
 import Timer from '../components/Timer.js';
 import Leaderboard from '../components/Leaderboard.js';
 import type { QuestionForPlayer, LeaderboardEntry, Answer } from '@live-trivia/shared';
 
-type Phase = 'waiting' | 'question' | 'submitted' | 'closed' | 'leaderboard' | 'game_over';
+type Phase = 'waiting' | 'wagering' | 'question' | 'submitted' | 'closed' | 'leaderboard' | 'game_over';
 
 export default function PlayerGame() {
   const { socket, connected } = useSocket();
@@ -16,6 +17,8 @@ export default function PlayerGame() {
   const [questionIdx, setQuestionIdx] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [endTime, setEndTime] = useState(0);
+  const [wagerEndTime, setWagerEndTime] = useState(0);
+  const [maxWager, setMaxWager] = useState(0);
   const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
   const [yourRank, setYourRank] = useState<number | undefined>();
 
@@ -26,6 +29,20 @@ export default function PlayerGame() {
       setQuestion(data.question);
       setQuestionIdx(data.questionIdx);
       setTotalQuestions(data.totalQuestions);
+      setEndTime(data.endTime);
+      setPhase('question');
+    });
+
+    socket.on('wager_phase', (data) => {
+      setQuestion(data.question);
+      setQuestionIdx(data.questionIdx);
+      setTotalQuestions(data.totalQuestions);
+      setWagerEndTime(data.wagerEndTime);
+      setMaxWager(data.maxWager);
+      setPhase('wagering');
+    });
+
+    socket.on('answer_phase', (data) => {
       setEndTime(data.endTime);
       setPhase('question');
     });
@@ -51,6 +68,8 @@ export default function PlayerGame() {
 
     return () => {
       socket.off('question');
+      socket.off('wager_phase');
+      socket.off('answer_phase');
       socket.off('question_closed');
       socket.off('leaderboard');
       socket.off('game_over');
@@ -63,6 +82,14 @@ export default function PlayerGame() {
       if (!socket) return;
       socket.emit('player:submit_answer', { answer });
       setPhase('submitted');
+    },
+    [socket],
+  );
+
+  const handleLockInWager = useCallback(
+    (wager: number) => {
+      if (!socket) return;
+      socket.emit('player:submit_wager', { wager });
     },
     [socket],
   );
@@ -80,6 +107,21 @@ export default function PlayerGame() {
         <div className="flex-1 flex flex-col items-center justify-center text-center py-16">
           <div className="w-8 h-8 border-[3px] border-gray-200 border-t-brand-300 rounded-full animate-spin mb-4" />
           <p className="text-slate-400 font-medium">Waiting for the host to start...</p>
+        </div>
+      )}
+
+      {phase === 'wagering' && question && (
+        <div className="w-full">
+          <p className="text-sm font-medium text-slate-400 text-center mb-2">
+            Question {questionIdx + 1} of {totalQuestions} — Wager Round
+          </p>
+          <Timer endTime={wagerEndTime} />
+          <WagerSelector
+            question={question}
+            maxWager={maxWager}
+            endTime={wagerEndTime}
+            onLockIn={handleLockInWager}
+          />
         </div>
       )}
 

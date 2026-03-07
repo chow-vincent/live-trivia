@@ -36,6 +36,7 @@ export interface PlayerAnswer {
   submittedAt: number;
   pointsAwarded: number | null; // null = not yet graded
   graded: boolean;
+  wager?: number; // amount wagered (wager rounds only)
 }
 
 // ─── Leaderboard ───────────────────────────────────────────────────

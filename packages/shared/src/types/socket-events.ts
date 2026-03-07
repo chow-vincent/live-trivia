@@ -7,6 +7,7 @@ export interface ClientToServerEvents {
   // Player events
   'player:join': (data: { gameCode: string; displayName: string }) => void;
   'player:submit_answer': (data: { answer: Answer }) => void;
+  'player:submit_wager': (data: { wager: number }) => void;
 
   // Host events
   'host:create': (data: { gameCode: string }) => void;
@@ -14,6 +15,7 @@ export interface ClientToServerEvents {
   'host:reject_player': (data: { playerId: string }) => void;
   'host:start_question': (data: { questionIdx: number }) => void;
   'host:end_question': () => void;
+  'host:start_answer_phase': () => void;
   'host:grade_answers': (data: { grades: GradeEntry[] }) => void;
   'host:next_question': () => void;
 }
@@ -37,6 +39,12 @@ export interface ServerToClientEvents {
   'answer_received': (data: { playerId: string; displayName: string }) => void;
   'all_answers': (data: { answers: PlayerAnswerForHost[] }) => void;
 
+  // Wager events
+  'wager_phase': (data: { question: QuestionForPlayer; questionIdx: number; totalQuestions: number; wagerEndTime: number; maxWager: number }) => void;
+  'wager_locked': (data: { playerId: string }) => void;
+  'wagers_complete': () => void;
+  'answer_phase': (data: { endTime: number }) => void;
+
   // Scoring events
   'leaderboard': (data: { rankings: LeaderboardEntry[]; yourRank?: number }) => void;
   'game_over': (data: { rankings: LeaderboardEntry[] }) => void;
@@ -56,6 +64,7 @@ export interface QuestionForPlayer {
   points: number;
   options?: string[];    // multiple choice
   items?: string[];      // ranking
+  imageUrl?: string;     // optional image
 }
 
 // Answer data as shown to host for grading
@@ -64,4 +73,5 @@ export interface PlayerAnswerForHost {
   displayName: string;
   answer: Answer;
   autoGradeResult: { score: number; maxScore: number } | null;
+  wager?: number; // amount wagered (wager rounds only)
 }

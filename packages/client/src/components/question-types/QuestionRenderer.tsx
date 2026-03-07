@@ -28,5 +28,12 @@ export default function QuestionRenderer({ question, onSubmit, disabled }: Quest
     );
   }
 
-  return <Component question={question} onSubmit={onSubmit} disabled={disabled} />;
+  return (
+    <div>
+      {question.imageUrl && (
+        <img src={question.imageUrl} alt="" className="w-full max-h-64 object-contain rounded-xl mb-4" />
+      )}
+      <Component question={question} onSubmit={onSubmit} disabled={disabled} />
+    </div>
+  );
 }

@@ -5,7 +5,7 @@ import Leaderboard from '../components/Leaderboard.js';
 import GradingPanel from '../components/grading/GradingPanel.js';
 import type { PlayerAnswerForHost, LeaderboardEntry, GradeEntry } from '@live-trivia/shared';
 
-type Phase = 'ready' | 'active' | 'grading' | 'leaderboard' | 'finished';
+type Phase = 'ready' | 'wagering' | 'wagers_done' | 'active' | 'grading' | 'leaderboard' | 'finished';
 
 export default function HostGame() {
   const { socket } = useSocket();
@@ -15,14 +15,46 @@ export default function HostGame() {
   const [phase, setPhase] = useState<Phase>('ready');
   const [questionIdx, setQuestionIdx] = useState(0);
   const [answersReceived, setAnswersReceived] = useState(0);
+  const [wagersLocked, setWagersLocked] = useState(0);
   const [answers, setAnswers] = useState<PlayerAnswerForHost[]>([]);
   const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
+  const [questionText, setQuestionText] = useState('');
+  const [questionImageUrl, setQuestionImageUrl] = useState<string | undefined>();
 
   useEffect(() => {
     if (!socket) return;
 
+    socket.on('question', (data) => {
+      setQuestionText(data.question.text);
+      setQuestionImageUrl(data.question.imageUrl);
+      setQuestionIdx(data.questionIdx);
+      setAnswersReceived(0);
+      setPhase('active');
+    });
+
     socket.on('answer_received', () => {
       setAnswersReceived((prev) => prev + 1);
+    });
+
+    socket.on('wager_phase', (data) => {
+      setQuestionText(data.question.text);
+      setQuestionImageUrl(data.question.imageUrl);
+      setQuestionIdx(data.questionIdx);
+      setWagersLocked(0);
+      setPhase('wagering');
+    });
+
+    socket.on('wager_locked', () => {
+      setWagersLocked((prev) => prev + 1);
+    });
+
+    socket.on('wagers_complete', () => {
+      setPhase('wagers_done');
+    });
+
+    socket.on('answer_phase', () => {
+      setAnswersReceived(0);
+      setPhase('active');
     });
 
     socket.on('all_answers', (data) => {
@@ -41,7 +73,12 @@ export default function HostGame() {
     });
 
     return () => {
+      socket.off('question');
       socket.off('answer_received');
+      socket.off('wager_phase');
+      socket.off('wager_locked');
+      socket.off('wagers_complete');
+      socket.off('answer_phase');
       socket.off('all_answers');
       socket.off('leaderboard');
       socket.off('game_over');
@@ -51,14 +88,17 @@ export default function HostGame() {
   const startQuestion = (idx: number) => {
     if (!socket) return;
     socket.emit('host:start_question', { questionIdx: idx });
-    setQuestionIdx(idx);
-    setAnswersReceived(0);
-    setPhase('active');
+    // Phase will be set by 'question' or 'wager_phase' event from server
   };
 
   const endQuestionEarly = () => {
     if (!socket) return;
     socket.emit('host:end_question');
+  };
+
+  const startAnswerPhase = () => {
+    if (!socket) return;
+    socket.emit('host:start_answer_phase');
   };
 
   const submitGrades = (grades: GradeEntry[]) => {
@@ -91,10 +131,44 @@ export default function HostGame() {
         </div>
       )}
 
+      {phase === 'wagering' && (
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+          <p className="text-sm font-medium text-slate-400 mb-2">Question {questionIdx + 1} — Wager Round</p>
+          <p className="text-xl font-semibold text-slate-800 mb-2">{questionText}</p>
+          {questionImageUrl && (
+            <img src={questionImageUrl} alt="" className="max-h-48 object-contain rounded-xl mx-auto mb-4" />
+          )}
+          <p className="text-slate-500 mb-2">Players are placing their wagers...</p>
+          <p className="text-3xl font-bold text-brand-400 tabular-nums">
+            {wagersLocked} wager{wagersLocked !== 1 ? 's' : ''} locked in
+          </p>
+        </div>
+      )}
+
+      {phase === 'wagers_done' && (
+        <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+          <p className="text-sm font-medium text-slate-400 mb-2">Question {questionIdx + 1} — Wager Round</p>
+          <p className="text-xl font-semibold text-slate-800 mb-2">{questionText}</p>
+          {questionImageUrl && (
+            <img src={questionImageUrl} alt="" className="max-h-48 object-contain rounded-xl mx-auto mb-4" />
+          )}
+          <p className="text-green-600 font-semibold mb-5">All wagers are in! ({wagersLocked} locked)</p>
+          <button
+            onClick={startAnswerPhase}
+            className="px-8 py-3.5 rounded-xl bg-brand-300 text-slate-900 font-semibold hover:bg-brand-400 active:scale-[0.98] transition-all"
+          >
+            Start Question
+          </button>
+        </div>
+      )}
+
       {phase === 'active' && (
         <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           <p className="text-sm font-medium text-slate-400 mb-2">Question {questionIdx + 1}</p>
-          <p className="text-xl font-semibold text-slate-800 mb-2">Question is live!</p>
+          <p className="text-xl font-semibold text-slate-800 mb-2">{questionText || 'Question is live!'}</p>
+          {questionImageUrl && (
+            <img src={questionImageUrl} alt="" className="max-h-48 object-contain rounded-xl mx-auto mb-4" />
+          )}
           <p className="text-3xl font-bold text-brand-400 tabular-nums mb-6">
             {answersReceived} answer{answersReceived !== 1 ? 's' : ''} received
           </p>

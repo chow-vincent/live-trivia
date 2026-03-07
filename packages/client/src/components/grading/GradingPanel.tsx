@@ -72,12 +72,20 @@ export default function GradingPanel({ answers, onSubmitGrades }: GradingPanelPr
         }
 
         return (
-          <GradingComponent
-            key={a.playerId}
-            answer={a}
-            points={grades[a.playerId] ?? 0}
-            onPointsChange={(pts) => handlePointsChange(a.playerId, pts)}
-          />
+          <div key={a.playerId}>
+            {a.wager != null && a.wager > 0 && (
+              <div className="mb-1 ml-1">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-700">
+                  Wagered {a.wager} pts
+                </span>
+              </div>
+            )}
+            <GradingComponent
+              answer={a}
+              points={grades[a.playerId] ?? 0}
+              onPointsChange={(pts) => handlePointsChange(a.playerId, pts)}
+            />
+          </div>
         );
       })}
 

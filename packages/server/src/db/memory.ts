@@ -70,6 +70,7 @@ export async function submitAnswer(
   displayName: string,
   questionIdx: number,
   answer: Answer,
+  wager?: number,
 ): Promise<void> {
   const key = answerKey(gameCode, questionIdx);
   const list = answers.get(key) ?? [];
@@ -81,6 +82,7 @@ export async function submitAnswer(
     submittedAt: Date.now(),
     pointsAwarded: null,
     graded: false,
+    wager,
   });
   answers.set(key, list);
 }
@@ -172,4 +174,12 @@ export async function deleteGame(gameCode: string): Promise<void> {
 export async function incrementPlayerCount(gameCode: string): Promise<void> {
   const game = games.get(gameCode);
   if (game) game.playerCount++;
+}
+
+export async function clampPlayerScore(gameCode: string, playerId: string): Promise<void> {
+  const list = players.get(gameCode) ?? [];
+  const player = list.find((p) => p.playerId === playerId);
+  if (player && player.totalScore < 0) {
+    player.totalScore = 0;
+  }
 }

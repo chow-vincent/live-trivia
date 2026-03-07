@@ -7,6 +7,9 @@ export interface BaseQuestion {
   text: string;
   timeLimit: number; // seconds
   points: number;
+  imageUrl?: string;       // optional image (CloudFront URL or external URL)
+  wager?: boolean;         // if true, this is a wager round
+  wagerTimeLimit?: number; // seconds for wager phase (default 15, range 5–60)
 }
 
 // ─── Question Types ────────────────────────────────────────────────
