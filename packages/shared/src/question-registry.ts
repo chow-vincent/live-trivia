@@ -1,4 +1,4 @@
-import type { BaseQuestion, Answer, FreeTextQuestion, FreeTextAnswer, MultipleChoiceQuestion, MultipleChoiceAnswer, RankingQuestion, RankingAnswer } from './types/question.js';
+import type { BaseQuestion, Answer, FreeTextQuestion, FreeTextAnswer, MultipleChoiceQuestion, MultipleChoiceAnswer, RankingQuestion, RankingAnswer, TrueFalseQuestion, TrueFalseAnswer } from './types/question.js';
 
 // ─── Plugin Interface ──────────────────────────────────────────────
 // Each question type implements this interface. Adding a new question
@@ -134,6 +134,36 @@ registerQuestionType<RankingQuestion, RankingAnswer>({
 
   stripCorrectAnswer(question) {
     const { correctOrder, ...safe } = question;
+    return safe;
+  },
+});
+
+// ─── Built-in: True/False ─────────────────────────────────────────
+
+registerQuestionType<TrueFalseQuestion, TrueFalseAnswer>({
+  type: 'true_false',
+
+  autoGrade(question, answer) {
+    const correct = answer.selected === question.correctAnswer;
+    return {
+      score: correct ? question.points : 0,
+      maxScore: question.points,
+    };
+  },
+
+  validateAnswer(answer): answer is TrueFalseAnswer {
+    return (
+      typeof answer === 'object' &&
+      answer !== null &&
+      'type' in answer &&
+      (answer as TrueFalseAnswer).type === 'true_false' &&
+      'selected' in answer &&
+      typeof (answer as TrueFalseAnswer).selected === 'boolean'
+    );
+  },
+
+  stripCorrectAnswer(question) {
+    const { correctAnswer, ...safe } = question;
     return safe;
   },
 });

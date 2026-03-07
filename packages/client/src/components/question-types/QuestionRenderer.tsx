@@ -2,6 +2,7 @@ import type { QuestionForPlayer, Answer } from '@live-trivia/shared';
 import FreeTextInput from './FreeTextInput.js';
 import MultipleChoiceInput from './MultipleChoiceInput.js';
 import RankingInput from './RankingInput.js';
+import TrueFalseInput from './TrueFalseInput.js';
 
 interface QuestionRendererProps {
   question: QuestionForPlayer;
@@ -13,6 +14,7 @@ const renderers: Record<string, React.FC<QuestionRendererProps>> = {
   free_text: FreeTextInput,
   multiple_choice: MultipleChoiceInput,
   ranking: RankingInput,
+  true_false: TrueFalseInput,
 };
 
 export default function QuestionRenderer({ question, onSubmit, disabled }: QuestionRendererProps) {

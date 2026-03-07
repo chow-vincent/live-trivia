@@ -29,6 +29,7 @@ export interface ServerToClientEvents {
   'join_rejected': (data: { message: string }) => void;
   'join_error': (data: { message: string }) => void;
   'player_pending': (data: { playerId: string; displayName: string }) => void;
+  'lobby_state': (data: { players: Player[]; pending: Array<{ playerId: string; displayName: string }> }) => void;
 
   // Game flow events
   'question': (data: { question: QuestionForPlayer; questionIdx: number; totalQuestions: number; endTime: number }) => void;

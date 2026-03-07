@@ -23,16 +23,31 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     socket.join(`game:${gameCode}`);
     socket.join(`host:${gameCode}`);
 
-    const activeGame: ActiveGame = {
-      gameCode,
-      hostSocketId: socket.id,
-      timers: new Map(),
-      playerSockets: new Map(),
-      pendingPlayers: new Map(),
-    };
-    setActiveGame(gameCode, activeGame);
+    // Reuse existing active game if host reconnects (preserves player state)
+    const existing = getActiveGame(gameCode);
+    if (existing) {
+      existing.hostSocketId = socket.id;
 
-    console.log(`Host joined game ${gameCode}`);
+      // Send current lobby state so host UI syncs
+      const dbPlayers = await db.getPlayers(gameCode);
+      const pendingList = Array.from(existing.pendingPlayers.values()).map((p) => ({
+        playerId: p.playerId,
+        displayName: p.displayName,
+      }));
+      socket.emit('lobby_state', { players: dbPlayers, pending: pendingList });
+
+      console.log(`Host reconnected to game ${gameCode}`);
+    } else {
+      const activeGame: ActiveGame = {
+        gameCode,
+        hostSocketId: socket.id,
+        timers: new Map(),
+        playerSockets: new Map(),
+        pendingPlayers: new Map(),
+      };
+      setActiveGame(gameCode, activeGame);
+      console.log(`Host joined game ${gameCode}`);
+    }
   });
 
   // Host starts a question — pushes it to all players

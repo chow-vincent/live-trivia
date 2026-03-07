@@ -3,6 +3,7 @@ import type { PlayerAnswerForHost, GradeEntry } from '@live-trivia/shared';
 import FreeTextGrading from './FreeTextGrading.js';
 import MultipleChoiceGrading from './MultipleChoiceGrading.js';
 import RankingGrading from './RankingGrading.js';
+import TrueFalseGrading from './TrueFalseGrading.js';
 
 interface GradingPanelProps {
   answers: PlayerAnswerForHost[];
@@ -19,6 +20,7 @@ const gradingRenderers: Record<string, React.FC<GradingRowProps>> = {
   free_text: FreeTextGrading,
   multiple_choice: MultipleChoiceGrading,
   ranking: RankingGrading,
+  true_false: TrueFalseGrading,
 };
 
 export default function GradingPanel({ answers, onSubmitGrades }: GradingPanelProps) {

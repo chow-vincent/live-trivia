@@ -16,6 +16,8 @@ function makeDefaultQuestion(type: QuestionType): Question {
       return { ...base, type: 'free_text', correctAnswer: '' };
     case 'ranking':
       return { ...base, type: 'ranking', items: ['', '', '', ''], correctOrder: ['', '', '', ''] };
+    case 'true_false':
+      return { ...base, type: 'true_false', correctAnswer: true };
   }
 }
 
@@ -128,6 +130,7 @@ export default function QuestionEditor({ questions, onChange }: Props) {
                 <option value="multiple_choice">Multiple Choice</option>
                 <option value="free_text">Free Text</option>
                 <option value="ranking">Ranking</option>
+                <option value="true_false">True / False</option>
               </select>
             </div>
 
@@ -162,6 +165,12 @@ export default function QuestionEditor({ questions, onChange }: Props) {
                 onChange={(partial) => updateQuestion(selectedIdx, partial)}
               />
             )}
+            {current.type === 'true_false' && (
+              <TrueFalseFields
+                question={current}
+                onChange={(partial) => updateQuestion(selectedIdx, partial)}
+              />
+            )}
 
             {/* Time + Points */}
             <div className="flex gap-4">
@@ -169,9 +178,11 @@ export default function QuestionEditor({ questions, onChange }: Props) {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Time (sec)</label>
                 <input
                   type="number"
-                  value={current.timeLimit}
-                  onChange={(e) => updateQuestion(selectedIdx, { timeLimit: parseInt(e.target.value) || 30 })}
+                  value={current.timeLimit || ''}
+                  onChange={(e) => updateQuestion(selectedIdx, { timeLimit: e.target.value === '' ? 0 : Math.min(parseInt(e.target.value), 7200) })}
+                  onBlur={() => { if (!current.timeLimit || current.timeLimit < 5) updateQuestion(selectedIdx, { timeLimit: 5 }); }}
                   min={5}
+                  max={7200}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-300"
                 />
               </div>
@@ -179,9 +190,11 @@ export default function QuestionEditor({ questions, onChange }: Props) {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Points</label>
                 <input
                   type="number"
-                  value={current.points}
-                  onChange={(e) => updateQuestion(selectedIdx, { points: parseInt(e.target.value) || 10 })}
+                  value={current.points || ''}
+                  onChange={(e) => updateQuestion(selectedIdx, { points: e.target.value === '' ? 0 : Math.min(parseInt(e.target.value), 9999) })}
+                  onBlur={() => { if (!current.points || current.points < 1) updateQuestion(selectedIdx, { points: 1 }); }}
                   min={1}
+                  max={9999}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-300"
                 />
               </div>
@@ -315,6 +328,36 @@ function RankingFields({
         </div>
       ))}
       <p className="text-xs text-slate-400">Items will be shuffled when shown to players</p>
+    </div>
+  );
+}
+
+function TrueFalseFields({
+  question,
+  onChange,
+}: {
+  question: Extract<Question, { type: 'true_false' }>;
+  onChange: (partial: Partial<Question>) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">Correct Answer</label>
+      <div className="flex gap-2">
+        {[true, false].map((value) => (
+          <button
+            key={String(value)}
+            type="button"
+            onClick={() => onChange({ correctAnswer: value } as any)}
+            className={`px-5 py-2.5 rounded-lg border-2 text-sm font-semibold transition-colors ${
+              question.correctAnswer === value
+                ? 'border-green-500 bg-green-50 text-green-700'
+                : 'border-slate-200 text-slate-400 hover:border-slate-300'
+            }`}
+          >
+            {value ? 'True' : 'False'}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

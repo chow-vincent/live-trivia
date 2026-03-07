@@ -4,10 +4,12 @@ export type {
   FreeTextQuestion,
   MultipleChoiceQuestion,
   RankingQuestion,
+  TrueFalseQuestion,
   Question,
   FreeTextAnswer,
   MultipleChoiceAnswer,
   RankingAnswer,
+  TrueFalseAnswer,
   Answer,
   QuestionType,
 } from './types/question.js';

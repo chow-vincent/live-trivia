@@ -42,8 +42,8 @@ export function parseCSV(file: File): Promise<ParseResult> {
             return;
           }
 
-          if (!type || !['multiple_choice', 'free_text'].includes(type)) {
-            errors.push({ row: rowNum, message: `Unsupported type "${type}". Use "multiple_choice" or "free_text".` });
+          if (!type || !['multiple_choice', 'free_text', 'true_false'].includes(type)) {
+            errors.push({ row: rowNum, message: `Unsupported type "${type}". Use "multiple_choice", "free_text", or "true_false".` });
             return;
           }
 
@@ -90,6 +90,20 @@ export function parseCSV(file: File): Promise<ParseResult> {
               timeLimit,
               points,
             });
+          } else if (type === 'true_false') {
+            const normalized = answer.toLowerCase();
+            if (normalized !== 'true' && normalized !== 'false') {
+              errors.push({ row: rowNum, message: 'Answer must be "True" or "False"' });
+              return;
+            }
+            questions.push({
+              id: nanoid(8),
+              type: 'true_false',
+              text,
+              correctAnswer: normalized === 'true',
+              timeLimit,
+              points,
+            });
           }
         });
 
@@ -106,6 +120,7 @@ export function generateTemplate(): string {
     'multiple_choice,"What is 2+2?",C,1,3,4,8,30,10',
     'multiple_choice,"Which planet is closest to the Sun?",B,Venus,Mercury,Mars,Earth,20,10',
     'free_text,"What is the capital of France?",Paris,,,,,20,10',
+    'true_false,"The Earth is flat.",False,,,,,15,10',
   ];
   return [headers, ...rows].join('\n');
 }

@@ -43,14 +43,21 @@ export default function HostLobby() {
       setPending((prev) => [...prev, data]);
     };
 
+    const onLobbyState = (data: { players: Player[]; pending: Array<{ playerId: string; displayName: string }> }) => {
+      setPlayers(data.players);
+      setPending(data.pending);
+    };
+
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_left', onPlayerLeft);
     socket.on('player_pending', onPlayerPending);
+    socket.on('lobby_state', onLobbyState);
 
     return () => {
       socket.off('player_joined', onPlayerJoined);
       socket.off('player_left', onPlayerLeft);
       socket.off('player_pending', onPlayerPending);
+      socket.off('lobby_state', onLobbyState);
     };
   }, [socket]);
 

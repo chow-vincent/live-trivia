@@ -29,8 +29,13 @@ export interface RankingQuestion extends BaseQuestion {
   correctOrder: string[]; // the correct ranking order
 }
 
+export interface TrueFalseQuestion extends BaseQuestion {
+  type: 'true_false';
+  correctAnswer: boolean;
+}
+
 // Discriminated union — extend this when adding new question types
-export type Question = FreeTextQuestion | MultipleChoiceQuestion | RankingQuestion;
+export type Question = FreeTextQuestion | MultipleChoiceQuestion | RankingQuestion | TrueFalseQuestion;
 
 // ─── Answer Types ──────────────────────────────────────────────────
 // Each question type has a corresponding answer shape.
@@ -50,7 +55,12 @@ export interface RankingAnswer {
   orderedItems: string[];
 }
 
-export type Answer = FreeTextAnswer | MultipleChoiceAnswer | RankingAnswer;
+export interface TrueFalseAnswer {
+  type: 'true_false';
+  selected: boolean;
+}
+
+export type Answer = FreeTextAnswer | MultipleChoiceAnswer | RankingAnswer | TrueFalseAnswer;
 
 // ─── Question Type Identifiers ─────────────────────────────────────
 
@@ -58,6 +68,7 @@ export const QUESTION_TYPES = {
   FREE_TEXT: 'free_text',
   MULTIPLE_CHOICE: 'multiple_choice',
   RANKING: 'ranking',
+  TRUE_FALSE: 'true_false',
 } as const;
 
 export type QuestionType = (typeof QUESTION_TYPES)[keyof typeof QUESTION_TYPES];
