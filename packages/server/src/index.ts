@@ -11,7 +11,11 @@ import { clerk } from './middleware/auth.js';
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+if (corsOrigin === '*' && process.env.NODE_ENV === 'production') {
+  console.warn('WARNING: CORS_ORIGIN is not set — allowing all origins in production!');
+}
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: '1mb' }));
 
 // Clerk auth — populates req.auth for all routes

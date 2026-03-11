@@ -173,7 +173,11 @@ export default function HostGame() {
             {answersReceived} answer{answersReceived !== 1 ? 's' : ''} received
           </p>
           <button
-            onClick={endQuestionEarly}
+            onClick={() => {
+              if (window.confirm('End this question early? Players will no longer be able to submit answers.')) {
+                endQuestionEarly();
+              }
+            }}
             className="px-6 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 active:scale-[0.98] transition-all"
           >
             End Question Early
@@ -186,7 +190,7 @@ export default function HostGame() {
           <h2 className="text-xl font-bold text-slate-900 mb-5">
             Grade Answers — Question {questionIdx + 1}
           </h2>
-          <GradingPanel answers={answers} onSubmitGrades={submitGrades} questionText={questionText} questionImageUrl={questionImageUrl} />
+          <GradingPanel key={questionIdx} answers={answers} onSubmitGrades={submitGrades} questionText={questionText} questionImageUrl={questionImageUrl} />
         </div>
       )}
 

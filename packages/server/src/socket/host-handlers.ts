@@ -14,8 +14,8 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
       return;
     }
 
-    // Verify ownership if socket is authenticated
-    if (socket.data.userId && game.hostId !== socket.data.userId) {
+    // Verify ownership — require auth if the game has a hostId
+    if (game.hostId && (!socket.data.userId || game.hostId !== socket.data.userId)) {
       socket.emit('error', { message: 'Not authorized to host this game' });
       return;
     }
@@ -60,11 +60,13 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     const game = await db.getGame(gameCode);
     if (!game) return;
 
-    const question = game.questions[questionIdx];
-    if (!question) {
-      socket.emit('error', { message: `Question ${questionIdx} not found` });
+    // Validate questionIdx before any DB writes
+    if (!Number.isInteger(questionIdx) || questionIdx < 0 || questionIdx >= game.questions.length) {
+      socket.emit('error', { message: `Invalid question index: ${questionIdx}` });
       return;
     }
+
+    const question = game.questions[questionIdx];
 
     // Update game state
     await db.updateGameStatus(gameCode, 'active', questionIdx);
@@ -76,9 +78,11 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     const activeGame = getActiveGame(gameCode);
     if (!activeGame) return;
 
-    // Clear any existing timer
-    const existingTimer = activeGame.timers.get(questionIdx);
-    if (existingTimer) clearTimeout(existingTimer);
+    // Clear ALL existing timers to prevent stale timer corruption
+    for (const [, timer] of activeGame.timers) {
+      clearTimeout(timer);
+    }
+    activeGame.timers.clear();
 
     if (question.wager) {
       // ── Wager phase ──
@@ -180,12 +184,20 @@ export function registerHostHandlers(io: TypedServer, socket: TypedSocket): void
     const gameCode = getGameCodeFromSocket(socket);
     if (!gameCode) return;
 
+    if (!Array.isArray(grades)) return;
+
     const game = await db.getGame(gameCode);
-    if (!game) return;
+    if (!game || game.status !== 'grading') return;
+
+    // Validate each grade entry
+    const validPlayerIds = new Set((await db.getPlayers(gameCode)).map((p) => p.playerId));
+    const validGrades = grades.filter(
+      (g) => g && typeof g.playerId === 'string' && validPlayerIds.has(g.playerId) && typeof g.pointsAwarded === 'number' && Number.isFinite(g.pointsAwarded),
+    );
 
     // Save grades and update scores
     const question = game.questions[game.currentQuestionIdx];
-    await db.gradeAnswers(gameCode, game.currentQuestionIdx, grades);
+    await db.gradeAnswers(gameCode, game.currentQuestionIdx, validGrades);
 
     // Clamp scores to 0 for wager rounds (negative points possible)
     if (question?.wager) {
@@ -351,6 +363,10 @@ async function handleQuestionTimeout(
   questionIdx: number,
   questions: Question[],
 ): Promise<void> {
+  // Prevent double-firing (e.g., host ends question while timer fires concurrently)
+  const game = await db.getGame(gameCode);
+  if (!game || game.status !== 'active') return;
+
   // Clean up the timer entry
   const activeGame = getActiveGame(gameCode);
   activeGame?.timers.delete(questionIdx);

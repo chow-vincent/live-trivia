@@ -3,12 +3,20 @@ import { generateUniqueGameCode } from '../game-code.js';
 import * as db from '../db/index.js';
 import { getQuestionPlugin, type Question } from '@live-trivia/shared';
 import { nanoid } from 'nanoid';
+import { getAuth } from '@clerk/express';
+import { authenticated } from '../middleware/auth.js';
 
 const router = Router();
 
-// POST /api/games — Create a new game with questions
-router.post('/games', async (req, res) => {
+// POST /api/games — Create a new game with questions (requires auth)
+router.post('/games', authenticated, async (req, res) => {
   try {
+    const { userId } = getAuth(req);
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
     const { questions: rawQuestions } = req.body as { questions: unknown[] };
 
     if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
@@ -39,12 +47,10 @@ router.post('/games', async (req, res) => {
     }
 
     const gameCode = await generateUniqueGameCode();
-    const hostId = nanoid(12);
-    const game = await db.createGame(gameCode, hostId, questions, 'Untitled Game');
+    const game = await db.createGame(gameCode, userId, questions, 'Untitled Game');
 
     res.status(201).json({
       gameCode: game.gameCode,
-      hostId,
       questionCount: questions.length,
     });
   } catch (err) {

@@ -22,6 +22,11 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
     const playerId = nanoid(10);
     const safeName = displayName.trim().slice(0, 30);
 
+    if (!safeName) {
+      socket.emit('join_error', { message: 'Display name cannot be empty.' });
+      return;
+    }
+
     // Place player in pending state — host must approve
     const activeGame = getActiveGame(gameCode);
     if (!activeGame) {
@@ -58,6 +63,9 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
 
     const activeGame = getActiveGame(gameCode);
     if (!activeGame) return;
+
+    // Prevent duplicate wager submissions
+    if (activeGame.wagers.has(playerId)) return;
 
     // Cap wager to player's current score (server-side validation)
     const players = await db.getPlayers(gameCode);
@@ -116,6 +124,13 @@ export function registerPlayerHandlers(io: TypedServer, socket: TypedSocket): vo
     const plugin = getQuestionPlugin(answer.type);
     if (!plugin || !plugin.validateAnswer(answer)) {
       socket.emit('error', { message: 'Invalid answer format' });
+      return;
+    }
+
+    // Prevent duplicate submissions
+    const existingAnswers = await db.getAnswersForQuestion(gameCode, game.currentQuestionIdx);
+    if (existingAnswers.some((a) => a.playerId === playerId)) {
+      socket.emit('error', { message: 'Answer already submitted' });
       return;
     }
 

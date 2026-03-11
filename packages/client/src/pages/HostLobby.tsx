@@ -19,7 +19,7 @@ export default function HostLobby() {
   const [copied, setCopied] = useState(false);
   const hasJoined = useRef(false);
 
-  const joinUrl = `https://hostedtrivia.com/play?code=${gameCode}`;
+  const joinUrl = `${window.location.origin}/play?code=${gameCode}`;
 
   useEffect(() => {
     if (!socket || !connected || !gameCode || hasJoined.current) return;

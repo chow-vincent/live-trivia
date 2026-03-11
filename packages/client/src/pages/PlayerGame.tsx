@@ -21,6 +21,7 @@ export default function PlayerGame() {
   const [maxWager, setMaxWager] = useState(0);
   const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
   const [yourRank, setYourRank] = useState<number | undefined>();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -64,6 +65,8 @@ export default function PlayerGame() {
 
     socket.on('error', (data) => {
       console.error('Server error:', data.message);
+      setErrorMsg(data.message);
+      setTimeout(() => setErrorMsg(null), 4000);
     });
 
     return () => {
@@ -100,6 +103,12 @@ export default function PlayerGame() {
         <div className="mb-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-500 text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           Reconnecting...
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-3 w-full px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium text-center">
+          {errorMsg}
         </div>
       )}
 
